@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+   Copyright 2011 Josh Beitelspacher
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+<reboot>
+  <modules>
+    <module>
+      <id>reboot-http</id>
+      <uri>${com.netbeetle.reboot.home}/http/</uri>
+    </module>
+    <module>
+      <id>reboot-source</id>
+      <uri>${com.netbeetle.reboot.home}/source/</uri>
+    </module>
+    <module>
+      <id>reboot-git</id>
+      <srcUri>${com.netbeetle.reboot.home}/git/</srcUri>
+      <dependencies>
+        <moduleId>jgit</moduleId>
+      </dependencies>
+    </module>
+    <module>
+      <id>jsch</id>
+      <uri>http://jsch.sourceforge.net/maven2/com/jcraft/jsch/0.1.44/jsch-0.1.44.jar</uri>
+      <srcUri>http://jsch.sourceforge.net/maven2/com/jcraft/jsch/0.1.44/jsch-0.1.44-sources.jar</srcUri>
+    </module>
+    <module>
+      <id>jgit</id>
+      <uri>http://download.eclipse.org/jgit/maven/org/eclipse/jgit/org.eclipse.jgit/0.12.1/org.eclipse.jgit-0.12.1.jar</uri>
+      <srcUri>http://download.eclipse.org/jgit/maven/org/eclipse/jgit/org.eclipse.jgit/0.12.1/org.eclipse.jgit-0.12.1-sources.jar</srcUri>
+      <dependencies>
+        <moduleId>jsch</moduleId>
+      </dependencies>
+    </module>
+  </modules>
+  <uriResolvers>
+    <uriResolver>
+      <className>com.netbeetle.reboot.git.GitURIResolver</className>
+      <moduleId>reboot-git</moduleId>
+      <expression>git(\+[a-z]+)?:/.*</expression>
+    </uriResolver>
+    <uriResolver>
+      <className>com.netbeetle.reboot.http.HttpURIResolver</className>
+      <moduleId>reboot-http</moduleId>
+      <expression>https?://.*</expression>
+    </uriResolver>
+  </uriResolvers>
+  <classLoaders>
+    <classLoader>
+      <id>reboot-source-classloader</id>
+      <className>com.netbeetle.reboot.source.SourceClassLoader</className>
+      <moduleId>reboot-source</moduleId>
+    </classLoader>
+  </classLoaders>
+</reboot>
