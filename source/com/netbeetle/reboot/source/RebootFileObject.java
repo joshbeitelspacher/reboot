@@ -28,19 +28,18 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.NestingKind;
 import javax.tools.JavaFileObject;
 
-public class ClasspathFileObject implements JavaFileObject
+import com.netbeetle.reboot.core.RebootFile;
+
+public class RebootFileObject implements JavaFileObject
 {
-    private final ClassLoader classLoader;
-    private final String fileName;
+    private final RebootFile file;
     private final URI uri;
     private final String className;
     private final Kind kind;
 
-    public ClasspathFileObject(ClassLoader classLoader, String fileName, URI uri,
-        String className, Kind kind)
+    public RebootFileObject(RebootFile file, URI uri, String className, Kind kind)
     {
-        this.classLoader = classLoader;
-        this.fileName = fileName;
+        this.file = file;
         this.uri = uri;
         this.className = className;
         this.kind = kind;
@@ -84,7 +83,7 @@ public class ClasspathFileObject implements JavaFileObject
     @Override
     public InputStream openInputStream() throws IOException
     {
-        return classLoader.getResourceAsStream(fileName);
+        return file.getInputStream();
     }
 
     @Override
@@ -103,7 +102,7 @@ public class ClasspathFileObject implements JavaFileObject
     @Override
     public String getName()
     {
-        return className;
+        return uri.toString();
     }
 
     @Override
@@ -158,6 +157,16 @@ public class ClasspathFileObject implements JavaFileObject
     @Override
     public String toString()
     {
+        return getName();
+    }
+
+    public String getClassName()
+    {
         return className;
+    }
+
+    public String getFileName()
+    {
+        return file.getName();
     }
 }

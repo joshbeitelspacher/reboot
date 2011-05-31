@@ -18,17 +18,18 @@ package com.netbeetle.reboot.git;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
+import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepository;
 
+import com.netbeetle.reboot.core.Reboot;
+import com.netbeetle.reboot.core.RebootException;
 import com.netbeetle.reboot.core.URIResolver;
 
 public class GitURIResolver implements URIResolver
@@ -36,40 +37,57 @@ public class GitURIResolver implements URIResolver
     private final Object lock = new Object();
     private final Map<String, CachedRepository> repositories =
         new ConcurrentHashMap<String, CachedRepository>();
-    private final GitURLStreamHandler handler = new GitURLStreamHandler(repositories);
 
     @Override
-    public URL resolve(URI uri) throws MalformedURLException
+    public GitFileSystem resolve(URI uri) throws RebootException
     {
-        URL url = new URL(null, uri.toString(), handler);
+        String uriString = uri.toString();
+        int start = uriString.startsWith("git+") ? 4 : 0;
+        int end = uriString.indexOf(".git/") + 4;
+        String repositoryURI = uriString.substring(start, end);
 
-        String urlString = url.toString();
-        int start = urlString.startsWith("git+") ? 4 : 0;
-        int end = urlString.indexOf(".git/") + 4;
-        String repositoryURL = urlString.substring(start, end);
-
-        CachedRepository cachedRepository = repositories.get(repositoryURL);
+        CachedRepository cachedRepository = repositories.get(repositoryURI);
         if (cachedRepository == null)
         {
             synchronized (lock)
             {
-                cachedRepository = repositories.get(repositoryURL);
+                cachedRepository = repositories.get(repositoryURI);
                 if (cachedRepository == null)
                 {
                     try
                     {
-                        cachedRepository = getRepository(repositoryURL);
+                        cachedRepository = getRepository(repositoryURI);
                     }
-                    catch (Exception e)
+                    catch (IOException e)
                     {
-                        e.printStackTrace();
+                        throw new RebootException("Unable to retrieve repository", e);
                     }
-                    repositories.put(repositoryURL, cachedRepository);
+                    repositories.put(repositoryURI, cachedRepository);
                 }
             }
         }
 
-        return url;
+        String revisionAndPath = uriString.substring(end + 1);
+        if (revisionAndPath.endsWith("/"))
+        {
+            revisionAndPath = revisionAndPath.substring(0, revisionAndPath.length() - 1);
+        }
+
+        try
+        {
+            ObjectId treeId = cachedRepository.lookupTree(revisionAndPath);
+            if (treeId == null)
+            {
+                throw new RebootException("Unable to find " + revisionAndPath
+                    + " in repository");
+            }
+
+            return new GitFileSystem(cachedRepository, treeId);
+        }
+        catch (IOException e)
+        {
+            throw new RebootException("Unable to find " + revisionAndPath + " in repository", e);
+        }
     }
 
     private CachedRepository getRepository(String repositoryURI) throws IOException
@@ -105,12 +123,13 @@ public class GitURIResolver implements URIResolver
 
         Repository repository = new FileRepository(cacheDir);
 
-        CachedRepository cachedRepository =
-            new CachedRepository(new String(repositoryURI), repository);
+        CachedRepository cachedRepository = new CachedRepository(repositoryURI, repository);
 
         try
         {
+            Reboot.info("Fetching from " + repositoryURI);
             cachedRepository.fetch();
+            Reboot.info("Finished fetching from " + repositoryURI);
         }
         catch (InvalidRemoteException e)
         {

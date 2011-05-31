@@ -17,14 +17,12 @@
 package com.netbeetle.reboot.core;
 
 import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.netbeetle.reboot.core.config.ClassLoaderConfig;
 import com.netbeetle.reboot.core.config.ClassLoaderReference;
@@ -42,8 +40,8 @@ public class ApplicationContext
     private final URI rebootDir;
     private final RebootConfig rebootConfig;
     private final ApplicationContext parentConfigLoader;
-    private final Map<ModuleConfig, ClassLoader> classLoaders =
-        new HashMap<ModuleConfig, ClassLoader>();
+    private final Map<ModuleConfig, RebootClassLoader> classLoaders =
+        new HashMap<ModuleConfig, RebootClassLoader>();
     private final Map<URIResolverConfig, URIResolver> uriResolvers =
         new HashMap<URIResolverConfig, URIResolver>();
 
@@ -87,10 +85,9 @@ public class ApplicationContext
         return null;
     }
 
-    public ClassLoader getClassLoader(ModuleReference moduleReference)
-        throws SecurityException, MalformedURLException, NoSuchMethodException,
-        ClassNotFoundException, InstantiationException, IllegalAccessException,
-        InvocationTargetException
+    public RebootClassLoader getClassLoader(ModuleReference moduleReference)
+        throws NoSuchMethodException, ClassNotFoundException, InstantiationException,
+        IllegalAccessException, InvocationTargetException, RebootException
     {
         ModuleConfig module = lookupModuleConfig(moduleReference);
         if (module == null)
@@ -104,13 +101,13 @@ public class ApplicationContext
         return getClassLoader(module);
     }
 
-    private ClassLoader getClassLoader(ModuleConfig module) throws SecurityException,
-        MalformedURLException, NoSuchMethodException, ClassNotFoundException,
-        InstantiationException, IllegalAccessException, InvocationTargetException
+    private RebootClassLoader getClassLoader(ModuleConfig module) throws NoSuchMethodException,
+        ClassNotFoundException, InstantiationException, IllegalAccessException,
+        InvocationTargetException, RebootException
     {
         if (classLoaders.containsKey(module))
         {
-            ClassLoader classLoader = classLoaders.get(module);
+            RebootClassLoader classLoader = classLoaders.get(module);
             if (classLoader == null)
             {
                 throw new RuntimeException("Recursive dependencies detected.");
@@ -122,42 +119,27 @@ public class ApplicationContext
         boolean success = false;
         try
         {
-            ClassLoader dependencyClassLoader;
+            ClassLoader parent = ClassLoader.getSystemClassLoader();
 
-            if (module.getDependencies() == null || module.getDependencies().isEmpty())
+            Set<RebootClassLoader> dependencies = new LinkedHashSet<RebootClassLoader>();
+            if (module.getDependencies() != null)
             {
-                dependencyClassLoader = ClassLoader.getSystemClassLoader();
-            }
-            else
-            {
-                List<ClassLoader> dependencyClassLoaders = new ArrayList<ClassLoader>();
                 for (ModuleReference dependency : module.getDependencies())
                 {
-                    dependencyClassLoaders.add(getClassLoader(dependency));
-                }
-                if (dependencyClassLoaders.size() == 1)
-                {
-                    dependencyClassLoader = dependencyClassLoaders.get(0);
-                }
-                else
-                {
-                    dependencyClassLoader =
-                        new CompoundClassLoader(ClassLoader.getSystemClassLoader(),
-                            dependencyClassLoaders
-                                .toArray(new ClassLoader[dependencyClassLoaders.size()]));
+                    dependencies.add(getClassLoader(dependency));
                 }
             }
 
             ClassLoaderReference moduleClassLoader = module.getClassLoader();
 
-            URL url;
+            RebootFileSystem fileSystem;
             if (module.getUri() != null)
             {
-                url = getURL(module.getUri());
+                fileSystem = getFileSystem(module.getUri());
             }
             else if (module.getSrcUri() != null)
             {
-                url = getURL(module.getSrcUri());
+                fileSystem = getFileSystem(module.getSrcUri());
                 if (moduleClassLoader == null)
                 {
                     moduleClassLoader = SOURCE_CLASS_LOADER;
@@ -168,20 +150,22 @@ public class ApplicationContext
                 throw new RuntimeException("No URI defined for " + module.getId());
             }
 
-            ClassLoader classLoader;
+            RebootClassLoaderContext context =
+                new RebootClassLoaderContext(module.getId(), fileSystem, dependencies, parent);
+
+            RebootClassLoader classLoader;
             if (moduleClassLoader == null)
             {
-                classLoader = new URLClassLoader(new URL[] {url}, dependencyClassLoader);
+                classLoader = new RebootClassLoader(context);
             }
             else
             {
-                classLoader = getClassLoader(moduleClassLoader, url, dependencyClassLoader);
+                classLoader = getClassLoader(moduleClassLoader, context);
             }
 
             classLoaders.put(module, classLoader);
-
+            classLoader.register();
             success = true;
-
             return classLoader;
         }
         finally
@@ -193,9 +177,9 @@ public class ApplicationContext
         }
     }
 
-    private URL getURL(URI uri) throws MalformedURLException, SecurityException,
-        InstantiationException, IllegalAccessException, ClassNotFoundException,
-        NoSuchMethodException, InvocationTargetException
+    private RebootFileSystem getFileSystem(URI uri) throws InstantiationException,
+        IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
+        InvocationTargetException, RebootException
     {
         URI fullURI = rebootDir.resolve(uri);
 
@@ -225,12 +209,12 @@ public class ApplicationContext
             throw new RuntimeException("URL handler not found for URL: " + fullURI);
         }
 
-        return parentConfigLoader.getURL(fullURI);
+        return parentConfigLoader.getFileSystem(fullURI);
     }
 
     private URIResolver getURIResolver(URIResolverConfig uriResolverConfig)
-        throws InstantiationException, IllegalAccessException, MalformedURLException,
-        ClassNotFoundException, NoSuchMethodException, InvocationTargetException
+        throws InstantiationException, IllegalAccessException, ClassNotFoundException,
+        NoSuchMethodException, InvocationTargetException, RebootException
     {
         URIResolver uriResolver = uriResolvers.get(uriResolverConfig);
         if (uriResolver == null)
@@ -243,10 +227,10 @@ public class ApplicationContext
         return uriResolver;
     }
 
-    public ClassLoader getClassLoader(ClassLoaderReference classLoaderReference, URL url,
-        ClassLoader parentClassLoader) throws InstantiationException, IllegalAccessException,
-        MalformedURLException, ClassNotFoundException, NoSuchMethodException,
-        InvocationTargetException
+    private RebootClassLoader getClassLoader(ClassLoaderReference classLoaderReference,
+        RebootClassLoaderContext context) throws InstantiationException,
+        IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
+        InvocationTargetException, RebootException
     {
         ClassLoaderConfig classLoader = lookupClassLoaderConfig(classLoaderReference);
         if (classLoader == null)
@@ -256,32 +240,31 @@ public class ApplicationContext
                 throw new RuntimeException("ClassLoader not found: "
                     + classLoaderReference.getId());
             }
-            return parentConfigLoader.getClassLoader(classLoaderReference, url,
-                parentClassLoader);
+            return parentConfigLoader.getClassLoader(classLoaderReference, context);
         }
-        return getClassLoader(classLoader, url, parentClassLoader);
+        return getClassLoader(classLoader, context);
     }
 
-    private ClassLoader getClassLoader(ClassLoaderConfig classLoaderConfig, URL url,
-        ClassLoader parentClassLoader) throws InstantiationException, IllegalAccessException,
-        MalformedURLException, ClassNotFoundException, NoSuchMethodException,
-        InvocationTargetException
+    private RebootClassLoader getClassLoader(ClassLoaderConfig classLoaderConfig,
+        RebootClassLoaderContext context) throws InstantiationException,
+        IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
+        InvocationTargetException, RebootException
     {
-        return getEntryPointClass(classLoaderConfig).asSubclass(ClassLoader.class)
-            .getConstructor(URL.class, ClassLoader.class).newInstance(url, parentClassLoader);
+        return getEntryPointClass(classLoaderConfig).asSubclass(RebootClassLoader.class)
+            .getConstructor(RebootClassLoaderContext.class).newInstance(context);
     }
 
     public Class<?> getEntryPointClass(EntryPointConfig entryPoint) throws SecurityException,
-        MalformedURLException, ClassNotFoundException, NoSuchMethodException,
-        InstantiationException, IllegalAccessException, InvocationTargetException
+        ClassNotFoundException, NoSuchMethodException, InstantiationException,
+        IllegalAccessException, InvocationTargetException, RebootException
     {
         return getClassLoader(entryPoint.getModuleReference()).loadClass(
             entryPoint.getClassName());
     }
 
-    public Class<?> getEntryPointClass() throws SecurityException, MalformedURLException,
-        ClassNotFoundException, NoSuchMethodException, InstantiationException,
-        IllegalAccessException, InvocationTargetException
+    public Class<?> getEntryPointClass() throws ClassNotFoundException, NoSuchMethodException,
+        InstantiationException, IllegalAccessException, InvocationTargetException,
+        RebootException
     {
         return getEntryPointClass(rebootConfig.getEntryPoint());
     }

@@ -14,11 +14,25 @@
  * limitations under the License.
  */
 
-package com.netbeetle.reboot.core;
+package com.netbeetle.reboot.example;
 
-import java.net.URI;
-
-public interface URIResolver
+public class PojoTest
 {
-    RebootFileSystem resolve(URI uri) throws RebootException;
+    private final String name;
+    
+    public PojoTest(String name)
+    {
+        this.name = name;
+    }
+
+    public String getName()
+    {
+        return name;
+    }
+
+    public static void main(String[] args)
+    {
+        PojoTest test = new PojoTest("Hello World");
+        System.out.println(test.getName());
+    }
 }

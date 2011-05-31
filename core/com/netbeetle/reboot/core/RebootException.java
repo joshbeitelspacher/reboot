@@ -16,9 +16,20 @@
 
 package com.netbeetle.reboot.core;
 
-import java.net.URI;
-
-public interface URIResolver
+public class RebootException extends Exception
 {
-    RebootFileSystem resolve(URI uri) throws RebootException;
+    public RebootException(String message)
+    {
+        super(message);
+    }
+
+    public RebootException(Throwable cause)
+    {
+        super(cause);
+    }
+
+    public RebootException(String message, Throwable cause)
+    {
+        super(message, cause);
+    }
 }

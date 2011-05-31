@@ -20,43 +20,38 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 
 import com.netbeetle.reboot.core.FileURIResolver;
+import com.netbeetle.reboot.core.Reboot;
+import com.netbeetle.reboot.core.RebootException;
+import com.netbeetle.reboot.core.RebootFileSystem;
 import com.netbeetle.reboot.core.URIResolver;
 
 public class HttpURIResolver implements URIResolver
 {
-    private final HttpURLStreamHandler handler = new HttpURLStreamHandler(this);
-
     @Override
-    public URL resolve(URI uri) throws MalformedURLException
+    public RebootFileSystem resolve(URI uri) throws RebootException
     {
-        URL url = uri.toURL();
-        String file = url.getFile();
-        if (file != null && file.endsWith("/"))
+        try
         {
-            return new URL(null, url.toString(), handler);
-        }
+            URL url = uri.toURL();
 
-        File cachedFile = getCachedFile(url);
-        if (!cachedFile.exists())
-        {
-            try
+            File cachedFile = getCachedFile(url);
+            if (!cachedFile.exists())
             {
                 download(url, cachedFile);
             }
-            catch (IOException e)
-            {
-                throw new RuntimeException("Error resolving " + uri);
-            }
-        }
 
-        return FileURIResolver.getInstance().resolve(cachedFile.toURI());
+            return FileURIResolver.getInstance().resolve(cachedFile.toURI());
+        }
+        catch (IOException e)
+        {
+            throw new RebootException("Error resolving " + uri, e);
+        }
     }
 
     private File getCachedFile(URL url)
@@ -88,13 +83,18 @@ public class HttpURIResolver implements URIResolver
             }
         }
 
-        String filename = builder.toString().replaceAll("_*/_*", "/");
+        String filename = builder.toString().replaceAll("_*/_*/*", "/");
+        if (filename.endsWith("/"))
+        {
+            filename = filename.substring(0, filename.length() - 1);
+        }
 
         return new File(rebootCacheDir, filename);
     }
 
     private void download(URL url, File file) throws IOException
     {
+        Reboot.info("Downloading " + url);
         InputStream input = url.openStream();
         try
         {
@@ -108,6 +108,7 @@ public class HttpURIResolver implements URIResolver
             {
                 channel.close();
             }
+            Reboot.info("Finished downloading " + url);
         }
         finally
         {

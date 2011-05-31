@@ -16,33 +16,32 @@
 
 package com.netbeetle.reboot.core;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLStreamHandler;
-import java.util.zip.ZipFile;
+import java.nio.charset.Charset;
+import java.util.Collection;
 
-public class ZipURLStreamHandler extends URLStreamHandler
+public abstract class RebootDirectory extends RebootFile
 {
-    private final ZipFile zipFile;
-    private final String zipFileURL;
-
-    public ZipURLStreamHandler(ZipFile zipFile, String zipFileURL)
+    public RebootDirectory(String name)
     {
-        this.zipFile = zipFile;
-        this.zipFileURL = zipFileURL;
+        super(name, true);
     }
 
     @Override
-    protected URLConnection openConnection(URL url) throws IOException
+    public byte[] getBytes() throws IOException
     {
-        if (!url.toString().startsWith(zipFileURL))
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        Charset utf8 = Charset.forName("UTF-8");
+        int nameLength = getName().length();
+        for (RebootFile file : list(false))
         {
-            throw new IOException("Not found");
+            bytes.write(file.getName().substring(nameLength).getBytes(utf8));
+            bytes.write('\n');
         }
-
-        final String path = url.toString().substring(zipFileURL.length());
-
-        return new ZipURLConnection(url, zipFile, path);
+        return bytes.toByteArray();
     }
+
+    @Override
+    public abstract Collection<RebootFile> list(boolean recursive) throws IOException;
 }

@@ -16,9 +16,16 @@
 
 package com.netbeetle.reboot.core;
 
-import java.net.URI;
+import java.io.IOException;
+import java.io.InputStream;
 
-public interface URIResolver
+public abstract class RebootStreamFile extends RebootFile
 {
-    RebootFileSystem resolve(URI uri) throws RebootException;
+    public RebootStreamFile(String name)
+    {
+        super(name, false);
+    }
+
+    @Override
+    public abstract InputStream getInputStream() throws IOException;
 }

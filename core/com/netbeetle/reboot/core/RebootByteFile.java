@@ -17,15 +17,14 @@
 package com.netbeetle.reboot.core;
 
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLStreamHandler;
 
-public class FileURLStreamHandler extends URLStreamHandler
+public abstract class RebootByteFile extends RebootFile
 {
-    @Override
-    protected URLConnection openConnection(URL url) throws IOException
+    public RebootByteFile(String name)
     {
-        return new FileURLConnection(url);
+        super(name, false);
     }
+
+    @Override
+    public abstract byte[] getBytes() throws IOException;
 }

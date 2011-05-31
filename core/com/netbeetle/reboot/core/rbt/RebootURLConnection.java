@@ -14,28 +14,28 @@
  * limitations under the License.
  */
 
-package com.netbeetle.reboot.git;
+package com.netbeetle.reboot.core.rbt;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 
-import org.eclipse.jgit.lib.ObjectId;
+import com.netbeetle.reboot.core.RebootClassLoader;
+import com.netbeetle.reboot.core.RebootFile;
 
-public class GitURLConnection extends URLConnection
+public class RebootURLConnection extends URLConnection
 {
-    private final CachedRepository cachedRepository;
-    private final String revisionAndPath;
+    private final String moduleName;
+    private final String path;
+    private RebootFile file;
 
-    private boolean recursive;
-    private ObjectId blobId;
-
-    public GitURLConnection(URL url, CachedRepository cachedRepository, String revisionAndPath)
+    public RebootURLConnection(URL url, String moduleName, String path)
     {
         super(url);
-        this.cachedRepository = cachedRepository;
-        this.revisionAndPath = revisionAndPath;
+        this.moduleName = moduleName;
+        this.path = path;
     }
 
     @Override
@@ -43,8 +43,16 @@ public class GitURLConnection extends URLConnection
     {
         if (!connected)
         {
-            recursive = Boolean.parseBoolean(getRequestProperty("recursive"));
-            blobId = cachedRepository.lookup(revisionAndPath);
+            RebootClassLoader classLoader = RebootClassLoader.getClassLoader(moduleName);
+            if (classLoader == null)
+            {
+                throw new FileNotFoundException("Module not found: " + url);
+            }
+            file = classLoader.findRebootFile(path);
+            if (file == null)
+            {
+                throw new FileNotFoundException("File not found: " + url);
+            }
             connected = true;
         }
     }
@@ -53,10 +61,6 @@ public class GitURLConnection extends URLConnection
     public InputStream getInputStream() throws IOException
     {
         connect();
-        if (revisionAndPath.endsWith("/"))
-        {
-            return cachedRepository.openTree(blobId, recursive);
-        }
-        return cachedRepository.open(blobId);
+        return file.getInputStream();
     }
 }

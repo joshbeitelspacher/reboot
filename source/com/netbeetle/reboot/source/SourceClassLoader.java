@@ -16,27 +16,18 @@
 
 package com.netbeetle.reboot.source;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.net.URLConnection;
-import java.net.URLStreamHandler;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticListener;
@@ -47,332 +38,277 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
-public class SourceClassLoader extends ClassLoader
-{
-    private final SortedMap<String, byte[]> cache = new ConcurrentSkipListMap<String, byte[]>();
-    private final SortedSet<String> classesWithErrors = new ConcurrentSkipListSet<String>();
+import com.netbeetle.reboot.core.Reboot;
+import com.netbeetle.reboot.core.RebootByteFile;
+import com.netbeetle.reboot.core.RebootClassLoader;
+import com.netbeetle.reboot.core.RebootClassLoaderContext;
+import com.netbeetle.reboot.core.RebootDirectory;
+import com.netbeetle.reboot.core.RebootFile;
 
-    public SourceClassLoader(URL sourceURL, ClassLoader parent)
+public class SourceClassLoader extends RebootClassLoader
+{
+    private static final AtomicLong COMPILATION_COUNT = new AtomicLong(0);
+
+    private class CompiledDirectory extends RebootDirectory
     {
-        super(new URLClassLoader(new URL[] {sourceURL}, parent));
+        private final RebootFile file;
+        private final boolean compile;
+
+        private CompiledDirectory(String name, RebootFile file, boolean compile)
+        {
+            super(name);
+            this.file = file;
+            this.compile = compile;
+        }
+
+        @Override
+        public Collection<RebootFile> list(boolean recursive) throws IOException
+        {
+            List<RebootFile> filesToCompile = new ArrayList<RebootFile>();
+            List<RebootFile> contents = new ArrayList<RebootFile>();
+            for (RebootFile oldFile : file.list(recursive))
+            {
+                if (oldFile.isDirectory())
+                {
+                    contents.add(new CompiledDirectory(oldFile.getName(), oldFile, compile));
+                }
+                if (oldFile.getName().endsWith(".java"))
+                {
+                    if (!compiledFiles.contains(oldFile.getName()))
+                    {
+                        if (compile)
+                        {
+                            filesToCompile.add(oldFile);
+                        }
+                        else
+                        {
+                            contents.add(oldFile);
+                        }
+                    }
+                }
+                else
+                {
+                    contents.add(oldFile);
+                }
+            }
+
+            if (!filesToCompile.isEmpty())
+            {
+                compile(filesToCompile);
+            }
+
+            String packageName = getName();
+            String upperBound = packageName + Character.MAX_VALUE;
+
+            Collection<CompiledFile> compiledClasses =
+                cache.subMap(packageName, upperBound).values();
+
+            if (recursive)
+            {
+                contents.addAll(compiledClasses);
+            }
+            else
+            {
+                int packageNameLength = packageName.length();
+
+                for (CompiledFile compiledClass : compiledClasses)
+                {
+                    String compiledClassFileName =
+                        compiledClass.getName().substring(packageNameLength);
+                    if (!compiledClassFileName.contains("/"))
+                    {
+                        contents.add(compiledClass);
+                    }
+                }
+            }
+
+            return contents;
+        }
+    }
+
+    private static class CompiledFile extends RebootByteFile
+    {
+        private final byte[] bytes;
+
+        private CompiledFile(String name, byte[] bytes)
+        {
+            super(name);
+            this.bytes = bytes;
+        }
+
+        @Override
+        public byte[] getBytes() throws IOException
+        {
+            return bytes;
+        }
+
+        @Override
+        public long getSize()
+        {
+            return bytes.length;
+        }
+    }
+
+    private final ConcurrentNavigableMap<String, CompiledFile> cache =
+        new ConcurrentSkipListMap<String, CompiledFile>();
+    private final SortedSet<String> compiledFiles = new ConcurrentSkipListSet<String>();
+
+    public SourceClassLoader(RebootClassLoaderContext context)
+    {
+        super(context);
     }
 
     @Override
-    public URL getResource(String name)
+    public RebootFile findRebootFile(String name) throws IOException
     {
-        if (name.endsWith(".java"))
-        {
-            return null;
-        }
+        return findRebootFile(name, true);
+    }
 
-        URL url = getParent().getResource(name);
-        if (url == null)
+    public RebootFile findRebootFile(String name, boolean compile) throws IOException
+    {
+        if (name.isEmpty() || name.endsWith("/"))
         {
-            return findResource(name);
-        }
-
-        if (name.endsWith("/"))
-        {
-            try
-            {
-                return new URL(null, url.toString(), new FilteringURLStreamHandler(url));
-            }
-            catch (MalformedURLException e)
+            final RebootFile file = super.findRebootFile(name);
+            if (file == null || !file.isDirectory())
             {
                 return null;
             }
+            return new CompiledDirectory(name, file, compile);
         }
 
-        return url;
-    }
-
-    @Override
-    public Enumeration<URL> getResources(String name) throws IOException
-    {
         if (name.endsWith(".java"))
         {
-            return Collections.enumeration(Collections.<URL> emptyList());
-        }
-
-        Enumeration<URL> enumeration = getParent().getResources(name);
-
-        List<URL> urls = new ArrayList<URL>();
-
-        if (name.endsWith("/"))
-        {
-            while (enumeration.hasMoreElements())
+            if (compile || compiledFiles.contains(name))
             {
-                URL url = enumeration.nextElement();
-                urls.add(new URL(null, url.toString(), new FilteringURLStreamHandler(url)));
+                return null;
             }
+            return super.findRebootFile(name);
         }
-        else
+
+        RebootFile file = super.findRebootFile(name);
+        if (file != null)
         {
-            while (enumeration.hasMoreElements())
-            {
-                urls.add(enumeration.nextElement());
-            }
+            return file;
         }
 
-        URL url = findResource(name);
-        if (url != null)
-        {
-            urls.add(url);
-        }
-
-        return Collections.enumeration(urls);
-    }
-
-    @Override
-    protected URL findResource(final String name)
-    {
         if (name.endsWith(".class"))
         {
-            final byte[] bytes =
-                getClassBytes(name.substring(0, name.length() - 6).replace('/', '.'));
-
-            if (bytes == null)
+            CompiledFile cachedFile = cache.get(name);
+            if (cachedFile != null)
             {
-                return null;
+                return cachedFile;
             }
 
-            try
+            if (compile)
             {
-                return new URL(null, "classpath:/" + name, new URLStreamHandler()
+                // inner classes are compiled with their outer classes
+                String sourceName;
+                int index = name.indexOf('$');
+                if (index == -1)
                 {
-                    @Override
-                    protected URLConnection openConnection(URL url) throws IOException
-                    {
-                        return new URLConnection(url)
-                        {
-                            @Override
-                            public void connect() throws IOException
-                            {
-                                if (!connected)
-                                {
-                                    connected = true;
-                                }
-                            }
-
-                            @Override
-                            public InputStream getInputStream() throws IOException
-                            {
-                                connect();
-                                return new ByteArrayInputStream(bytes);
-                            }
-                        };
-                    }
-                });
-            }
-            catch (MalformedURLException e)
-            {
-                return null;
-            }
-        }
-        else if (name.endsWith("/"))
-        {
-            try
-            {
-                return new URL(null, "classpath:/" + name, new URLStreamHandler()
-                {
-                    @Override
-                    protected URLConnection openConnection(URL url) throws IOException
-                    {
-                        return new URLConnection(url)
-                        {
-                            private boolean recursive;
-                            private byte[] bytes;
-
-                            @Override
-                            public void connect() throws IOException
-                            {
-                                if (!connected)
-                                {
-                                    recursive =
-                                        Boolean.parseBoolean(getRequestProperty("recursive"));
-                                    bytes =
-                                        getPackageBytes(name.substring(0, name.length() - 1)
-                                            .replace('/', '.'), recursive);
-                                    connected = true;
-                                }
-                            }
-
-                            @Override
-                            public InputStream getInputStream() throws IOException
-                            {
-                                connect();
-                                return new ByteArrayInputStream(bytes);
-                            }
-                        };
-                    }
-                });
-            }
-            catch (MalformedURLException e)
-            {
-                return null;
-            }
-        }
-        else
-        {
-            return null;
-        }
-    }
-
-    @Override
-    protected Class<?> findClass(String name) throws ClassNotFoundException
-    {
-        byte[] loadedClass = getClassBytes(name);
-        if (loadedClass == null)
-        {
-            throw new ClassNotFoundException(name);
-        }
-
-        return defineClass(name, loadedClass, 0, loadedClass.length);
-    }
-
-    private byte[] getClassBytes(String name)
-    {
-        byte[] cachedBytes = cache.get(name);
-        if (cachedBytes != null)
-        {
-            return cachedBytes;
-        }
-
-        // don't try to recompile something that is known to be bad
-        if (classesWithErrors.contains(name))
-        {
-            return null;
-        }
-
-        // inner classes are compiled with their outer classes and cannot be
-        // compiled separately
-        if (name.contains("$"))
-        {
-            return null;
-        }
-
-        compileClasses(Collections.singletonList(name));
-
-        return cache.get(name);
-    }
-
-    private byte[] getPackageBytes(String name, boolean recursive) throws IOException
-    {
-        Enumeration<URL> urls = getParent().getResources(name.replace('.', '/') + '/');
-
-        List<String> classesToCompile = new ArrayList<String>();
-
-        while (urls.hasMoreElements())
-        {
-            URL url = urls.nextElement();
-
-            URLConnection connection = url.openConnection();
-            connection.setRequestProperty("recursive", Boolean.toString(recursive));
-            BufferedReader reader =
-                new BufferedReader(new InputStreamReader(connection.getInputStream(),
-                    CharsetUtil.UTF8));
-            try
-            {
-                for (String file = reader.readLine(); file != null; file = reader.readLine())
-                {
-                    if (!file.endsWith(".java"))
-                    {
-                        continue;
-                    }
-
-                    String className = name + '.' + file.substring(0, file.length() - 5);
-
-                    if (!cache.containsKey(className) && !classesWithErrors.contains(className))
-                    {
-                        classesToCompile.add(className);
-                    }
+                    sourceName = name.substring(0, name.length() - 6) + ".java";
                 }
-                reader.close();
-                reader = null;
-            }
-            finally
-            {
-                if (reader != null)
+                else
                 {
-                    reader.close();
+                    sourceName = name.substring(0, index) + ".java";
                 }
+
+                // don't try to recompile something that has already been
+                // compiled
+                if (compiledFiles.contains(sourceName))
+                {
+                    return null;
+                }
+
+                file = super.findRebootFile(sourceName);
+                if (file == null)
+                {
+                    return null;
+                }
+
+                compile(Collections.singleton(file));
+
+                return cache.get(name);
             }
         }
 
-        if (!classesToCompile.isEmpty())
-        {
-            compileClasses(classesToCompile);
-        }
-
-        StringBuilder builder = new StringBuilder();
-
-        Set<String> compiledClasses = cache.subMap(name + '.', name + ('.' + 1)).keySet();
-
-        int packageNameLength = name.length() + 1;
-
-        for (String compiledClass : compiledClasses)
-        {
-            String compiledClassFileName = compiledClass.substring(packageNameLength);
-            if (recursive || !compiledClassFileName.contains("."))
-            {
-                builder.append(compiledClassFileName);
-                builder.append(".class\n");
-            }
-        }
-
-        return builder.toString().getBytes(CharsetUtil.UTF8);
+        return null;
     }
 
-    private synchronized void compileClasses(List<String> names)
+    private synchronized void compile(Collection<RebootFile> files)
     {
+        final long compilationNumber = COMPILATION_COUNT.incrementAndGet();
+
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 
         JavaFileManager standardFileManager = compiler.getStandardFileManager(null, null, null);
 
-        List<String> compiledClasses = new ArrayList<String>();
-
-        ClasspathFileManager fileManager =
-            new ClasspathFileManager(standardFileManager, getParent());
+        RebootFileManager fileManager =
+            new RebootFileManager(standardFileManager, this, getDependencies());
         try
         {
             final Map<String, JavaFileObject> compilationUnits =
                 new ConcurrentHashMap<String, JavaFileObject>();
-            for (String name : names)
+            final String newLine = String.format("%n");
+            String indent = newLine + "    ";
+            StringBuilder message = new StringBuilder("Starting compilation request ");
+            message.append(compilationNumber).append(':');
+            for (RebootFile file : files)
             {
                 try
                 {
+                    String className =
+                        file.getName().replace('/', '.')
+                            .substring(0, file.getName().length() - 5);
                     JavaFileObject javaFileForInput =
-                        fileManager.getJavaFileForInput(StandardLocation.SOURCE_PATH, name,
-                            JavaFileObject.Kind.SOURCE);
+                        fileManager.getJavaFileForInput(StandardLocation.SOURCE_PATH,
+                            className, JavaFileObject.Kind.SOURCE);
                     if (javaFileForInput != null)
                     {
-                        compilationUnits.put(name, javaFileForInput);
+                        compilationUnits.put(file.getName(), javaFileForInput);
+                        message.append(indent).append(javaFileForInput);
                     }
                 }
                 catch (IOException e)
                 {
-                    return;
+                    // do nothing
                 }
             }
+
+            if (compilationUnits.isEmpty())
+            {
+                return;
+            }
+
+            Reboot.info(message.toString());
+
+            message.delete(0, message.length());
+
+            message.append("Compilation request ").append(compilationNumber)
+                .append(" completed:");
+            boolean success = false;
 
             while (!compilationUnits.isEmpty())
             {
                 int classesLeftToCompile = compilationUnits.size();
 
                 CompilationTask compilationTask =
-                    compiler
-                        .getTask(null, fileManager, new DiagnosticListener<JavaFileObject>()
+                    compiler.getTask(null, fileManager,
+                        new DiagnosticListener<JavaFileObject>()
                         {
                             @Override
                             public void report(Diagnostic<? extends JavaFileObject> diagnostic)
                             {
                                 JavaFileObject source = diagnostic.getSource();
                                 if (diagnostic.getKind() == Diagnostic.Kind.ERROR
-                                    && source != null)
+                                    && source instanceof RebootFileObject)
                                 {
-                                    compilationUnits.remove(source.getName());
+                                    String fileName = ((RebootFileObject) source).getFileName();
+                                    compilationUnits.remove(fileName);
+                                    compiledFiles.add(fileName);
                                 }
-                                System.err.println(diagnostic.toString());
+                                Reboot.info("Compiler output for compilation request "
+                                    + compilationNumber + ':' + newLine + diagnostic.toString());
                             }
                         }, null, null, new ArrayList<JavaFileObject>(compilationUnits.values()));
 
@@ -381,10 +317,15 @@ public class SourceClassLoader extends ClassLoader
                 List<MemoryFileObject> memoryFiles = fileManager.getMemoryFiles();
                 for (MemoryFileObject memoryFile : memoryFiles)
                 {
-                    String name = memoryFile.getName();
-                    cache.put(name, memoryFile.getContent());
-                    compiledClasses.add(name);
-                    compilationUnits.remove(name);
+                    String baseName = memoryFile.getClassName().replace('.', '/');
+                    String classFileName = baseName + ".class";
+                    String sourceFileName = baseName + ".java";
+                    message.append(indent).append(memoryFile);
+                    cache.putIfAbsent(classFileName,
+                        new CompiledFile(classFileName, memoryFile.getContent()));
+                    compilationUnits.remove(sourceFileName);
+                    compiledFiles.add(sourceFileName);
+                    success = true;
                 }
                 fileManager.clearMemoryFiles();
 
@@ -394,9 +335,22 @@ public class SourceClassLoader extends ClassLoader
                     break;
                 }
             }
+
+            if (success)
+            {
+                Reboot.info(message.toString());
+            }
+            else
+            {
+                Reboot.info("No classes compiled in compilation request " + compilationNumber);
+            }
         }
         finally
         {
+            for (RebootFile file : files)
+            {
+                compiledFiles.add(file.getName());
+            }
             try
             {
                 fileManager.flush();

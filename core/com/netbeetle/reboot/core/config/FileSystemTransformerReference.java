@@ -14,28 +14,15 @@
  * limitations under the License.
  */
 
-package com.netbeetle.reboot.git;
+package com.netbeetle.reboot.core.config;
 
-import org.eclipse.jgit.revwalk.RevTree;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-public class TreeAndPath
+@XmlJavaTypeAdapter(FileSystemTransformerReferenceXmlAdapter.class)
+public class FileSystemTransformerReference extends Reference
 {
-    private final RevTree tree;
-    private final String path;
-
-    public TreeAndPath(RevTree tree, String path)
+    public FileSystemTransformerReference(String id)
     {
-        this.tree = tree;
-        this.path = path;
-    }
-
-    public RevTree getTree()
-    {
-        return tree;
-    }
-
-    public String getPath()
-    {
-        return path;
+        super(id);
     }
 }

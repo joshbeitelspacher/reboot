@@ -14,11 +14,22 @@
  * limitations under the License.
  */
 
-package com.netbeetle.reboot.core;
+package com.netbeetle.reboot.core.config;
 
-import java.net.URI;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
 
-public interface URIResolver
+public class FileSystemTransformerReferenceXmlAdapter extends
+    XmlAdapter<String, FileSystemTransformerReference>
 {
-    RebootFileSystem resolve(URI uri) throws RebootException;
+    @Override
+    public FileSystemTransformerReference unmarshal(String v)
+    {
+        return new FileSystemTransformerReference(v);
+    }
+
+    @Override
+    public String marshal(FileSystemTransformerReference v) throws Exception
+    {
+        return v.getId();
+    }
 }

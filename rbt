@@ -18,7 +18,7 @@ REBOOT_HOME=$(dirname $(readlink -f $0))
 
 JAVA_HOME=$(dirname $(readlink -f $(which java)))/../..
 
-exec java -cp "${JAVA_HOME}/lib/tools.jar:${REBOOT_HOME}/core" "-Dcom.netbeetle.reboot.home=${REBOOT_HOME}" com.netbeetle.reboot.core.Reboot "$@"
+exec java -cp "${JAVA_HOME}/lib/tools.jar:${REBOOT_HOME}/core" "-Dcom.netbeetle.reboot.home=${REBOOT_HOME}" -Djava.protocol.handler.pkgs=com.netbeetle.reboot.core com.netbeetle.reboot.core.Reboot "$@"
 
 # Use the following line to debug
-#exec java -agentlib:jdwp=transport=dt_socket,address=localhost:9009,server=y,suspend=y -cp "${JAVA_HOME}/lib/tools.jar:${REBOOT_HOME}/core" "-Dcom.netbeetle.reboot.home=${REBOOT_HOME}" com.netbeetle.reboot.core.Reboot "$@"
+#exec java -agentlib:jdwp=transport=dt_socket,address=localhost:9009,server=y,suspend=y -cp "${JAVA_HOME}/lib/tools.jar:${REBOOT_HOME}/core" "-Dcom.netbeetle.reboot.home=${REBOOT_HOME}" -Djava.protocol.handler.pkgs=com.netbeetle.reboot.core com.netbeetle.reboot.core.Reboot "$@"

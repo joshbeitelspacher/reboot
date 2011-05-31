@@ -16,9 +16,9 @@
 
 package com.netbeetle.reboot.core;
 
-import java.net.URI;
+import java.io.IOException;
 
-public interface URIResolver
+public interface RebootFileSystem
 {
-    RebootFileSystem resolve(URI uri) throws RebootException;
+    RebootFile getFile(String name) throws IOException;
 }

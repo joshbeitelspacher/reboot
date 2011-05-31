@@ -14,11 +14,19 @@
  * limitations under the License.
  */
 
-package com.netbeetle.reboot.core;
+package com.netbeetle.reboot.core.config;
 
-import java.net.URI;
-
-public interface URIResolver
+public class FileSystemTransformerConfig extends EntryPointConfig
 {
-    RebootFileSystem resolve(URI uri) throws RebootException;
+    private String id;
+
+    public String getId()
+    {
+        return id;
+    }
+
+    public void setId(String id)
+    {
+        this.id = id;
+    }
 }

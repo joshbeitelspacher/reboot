@@ -14,35 +14,38 @@
  * limitations under the License.
  */
 
-package com.netbeetle.reboot.http;
+package com.netbeetle.reboot.core.rbt;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 
-import com.netbeetle.reboot.core.URIResolver;
-
-public class HttpURLStreamHandler extends URLStreamHandler
+public class Handler extends URLStreamHandler
 {
-    private final URIResolver resolver;
-
-    public HttpURLStreamHandler(URIResolver resolver)
-    {
-        this.resolver = resolver;
-    }
-
     @Override
     protected URLConnection openConnection(URL url) throws IOException
     {
-        try
+        if (!url.getProtocol().equals("rbt"))
         {
-            return resolver.resolve(url.toURI()).openConnection();
+            throw new IOException("Protocol must be rbt");
         }
-        catch (URISyntaxException e)
+
+        String rawUrl = url.toString();
+        if (rawUrl.charAt(4) != '/')
         {
-            throw new IOException(e);
+            throw new IOException("Badly formed rbt url: " + rawUrl);
         }
+
+        int slashIndex = rawUrl.indexOf('/', 5);
+        if (slashIndex == -1)
+        {
+            throw new IOException("Badly formed rbt url: " + rawUrl);
+        }
+
+        String moduleName = rawUrl.substring(5, slashIndex);
+        String path = rawUrl.substring(slashIndex + 1);
+
+        return new RebootURLConnection(url, moduleName, path);
     }
 }

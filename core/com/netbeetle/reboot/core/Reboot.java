@@ -20,6 +20,7 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import com.netbeetle.reboot.core.config.ConfigLoader;
@@ -28,8 +29,8 @@ import com.netbeetle.reboot.core.config.RebootConfig;
 public class Reboot
 {
     // not thread safe, only use from a single thread
-    private static final DateFormat DATE_FORMAT = DateFormat.getDateTimeInstance(
-        DateFormat.SHORT, DateFormat.LONG);
+    private static final DateFormat DATE_FORMAT = new SimpleDateFormat(
+        "yyyy-MM-dd HH:mm:ss.SSS");
 
     public static void main(final String[] args) throws Throwable
     {
@@ -89,8 +90,8 @@ public class Reboot
         }
     }
 
-    private static void info(String message)
+    public synchronized static void info(String message)
     {
-        System.out.println(DATE_FORMAT.format(new Date()) + " " + message);
+        System.out.println(DATE_FORMAT.format(new Date()) + ": " + message);
     }
 }

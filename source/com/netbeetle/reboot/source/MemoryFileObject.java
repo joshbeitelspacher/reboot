@@ -27,7 +27,6 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.NestingKind;
@@ -93,7 +92,7 @@ public class MemoryFileObject implements JavaFileObject
             @Override
             public void close() throws IOException
             {
-                content = toString().getBytes(Charset.forName("UTF-8"));
+                content = toString().getBytes(CharsetUtil.UTF8);
             }
         };
     }
@@ -112,7 +111,7 @@ public class MemoryFileObject implements JavaFileObject
     @Override
     public String getName()
     {
-        return className;
+        return uri.toString();
     }
 
     @Override
@@ -154,6 +153,11 @@ public class MemoryFileObject implements JavaFileObject
 
     @Override
     public String toString()
+    {
+        return getName();
+    }
+
+    public String getClassName()
     {
         return className;
     }
