@@ -17,8 +17,6 @@
 package com.netbeetle.reboot.core;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -32,7 +30,7 @@ public class Reboot
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat(
         "yyyy-MM-dd HH:mm:ss.SSS");
 
-    public static void main(final String[] args) throws Throwable
+    public static void main(final String[] args) throws Exception
     {
         info("Starting Reboot");
 
@@ -72,22 +70,17 @@ public class Reboot
         ApplicationContext applicationContext =
             new ApplicationContext(applicationDir.toURI(), applicationConfig, masterContext);
 
-        info("Loading entry point class");
-
-        Class<?> entryPointClass = applicationContext.getEntryPointClass();
-
-        Method mainMethod = entryPointClass.getMethod("main", String[].class);
-
-        info("Launching application");
-
-        try
+        Arguments arguments = new Arguments(args);
+        
+        if (!arguments.getOptions().isEmpty())
         {
-            mainMethod.invoke(null, (Object) args);
+            System.err.println("Unsupported options: " + arguments.getOptions());
+            System.exit(-1);
+            return;
         }
-        catch (InvocationTargetException e)
-        {
-            throw e.getCause();
-        }
+
+        RebootAction action = applicationContext.getAction(arguments.getAction());
+        action.execute(applicationContext, arguments);
     }
 
     public synchronized static void info(String message)

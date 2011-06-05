@@ -181,6 +181,15 @@ public abstract class RebootFile
         return new ByteArrayInputStream(getBytes());
     }
 
+    /**
+     * Lists the contents of a directory. If this method is called on a regular
+     * file and empty list will be returned.
+     * 
+     * @param recursive
+     *            true if files in subdirectories should be included in the list
+     * @throws IOException
+     *             if a list of files cannot be retrieved
+     */
     public Collection<RebootFile> list(boolean recursive) throws IOException
     {
         return Collections.emptyList();

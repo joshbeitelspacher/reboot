@@ -28,6 +28,7 @@ public class RebootConfig
     private EntryPointConfig entryPoint;
     private List<URIResolverConfig> uriResolvers;
     private List<ClassLoaderConfig> classLoaders;
+    private List<ActionConfig> actions;
     private List<ModuleConfig> modules;
 
     public EntryPointConfig getEntryPoint()
@@ -62,6 +63,18 @@ public class RebootConfig
     public void setClassLoaders(List<ClassLoaderConfig> classLoaders)
     {
         this.classLoaders = classLoaders;
+    }
+
+    @XmlElementWrapper
+    @XmlElement(name = "action")
+    public List<ActionConfig> getActions()
+    {
+        return actions;
+    }
+
+    public void setActions(List<ActionConfig> actions)
+    {
+        this.actions = actions;
     }
 
     @XmlElementWrapper

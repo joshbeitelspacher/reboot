@@ -74,7 +74,7 @@ public class RebootFileObject implements JavaFileObject
                 }
                 catch (IOException e)
                 {
-                    throw new RuntimeException(e);
+                    // discard exception
                 }
             }
         }

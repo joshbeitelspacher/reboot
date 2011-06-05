@@ -17,5 +17,6 @@
 cd $(dirname $(readlink -f $0))
 
 find core -name "*.java" -exec javac -encoding UTF-8 {} +
+find run -name "*.java" -exec javac -encoding UTF-8 -classpath core {} +
 find source -name "*.java" -exec javac -encoding UTF-8 -classpath core {} +
 find http -name "*.java" -exec javac -encoding UTF-8 -classpath core {} +

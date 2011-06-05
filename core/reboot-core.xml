@@ -17,6 +17,10 @@
 <reboot>
   <modules>
     <module>
+      <id>reboot-run</id>
+      <uri>${com.netbeetle.reboot.home}/run/</uri>
+    </module>
+    <module>
       <id>reboot-http</id>
       <uri>${com.netbeetle.reboot.home}/http/</uri>
     </module>
@@ -64,4 +68,11 @@
       <moduleId>reboot-source</moduleId>
     </classLoader>
   </classLoaders>
+  <actions>
+    <action>
+      <id>run</id>
+      <className>com.netbeetle.reboot.run.RunAction</className>
+      <moduleId>reboot-run</moduleId>
+    </action>
+  </actions>
 </reboot>

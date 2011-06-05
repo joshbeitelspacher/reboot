@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.netbeetle.reboot.core.config.ActionConfig;
+import com.netbeetle.reboot.core.config.ActionReference;
 import com.netbeetle.reboot.core.config.ClassLoaderConfig;
 import com.netbeetle.reboot.core.config.ClassLoaderReference;
 import com.netbeetle.reboot.core.config.EntryPointConfig;
@@ -85,6 +87,22 @@ public class ApplicationContext
         return null;
     }
 
+    private ActionConfig lookupActionConfig(ActionReference actionReference)
+    {
+        if (rebootConfig.getActions() == null)
+        {
+            return null;
+        }
+        for (ActionConfig action : rebootConfig.getActions())
+        {
+            if (action.getId().equals(actionReference.getId()))
+            {
+                return action;
+            }
+        }
+        return null;
+    }
+
     public RebootClassLoader getClassLoader(ModuleReference moduleReference)
         throws NoSuchMethodException, ClassNotFoundException, InstantiationException,
         IllegalAccessException, InvocationTargetException, RebootException
@@ -94,7 +112,7 @@ public class ApplicationContext
         {
             if (parentConfigLoader == null)
             {
-                throw new RuntimeException("Module not found: " + moduleReference.getId());
+                throw new RebootException("Module not found: " + moduleReference.getId());
             }
             return parentConfigLoader.getClassLoader(moduleReference);
         }
@@ -110,7 +128,7 @@ public class ApplicationContext
             RebootClassLoader classLoader = classLoaders.get(module);
             if (classLoader == null)
             {
-                throw new RuntimeException("Recursive dependencies detected.");
+                throw new RebootException("Recursive dependencies detected.");
             }
             return classLoader;
         }
@@ -147,7 +165,7 @@ public class ApplicationContext
             }
             else
             {
-                throw new RuntimeException("No URI defined for " + module.getId());
+                throw new RebootException("No URI defined for " + module.getId());
             }
 
             RebootClassLoaderContext context =
@@ -206,7 +224,7 @@ public class ApplicationContext
 
         if (parentConfigLoader == null)
         {
-            throw new RuntimeException("URL handler not found for URL: " + fullURI);
+            throw new RebootException("URL handler not found for URL: " + fullURI);
         }
 
         return parentConfigLoader.getFileSystem(fullURI);
@@ -237,7 +255,7 @@ public class ApplicationContext
         {
             if (parentConfigLoader == null)
             {
-                throw new RuntimeException("ClassLoader not found: "
+                throw new RebootException("ClassLoader not found: "
                     + classLoaderReference.getId());
             }
             return parentConfigLoader.getClassLoader(classLoaderReference, context);
@@ -267,5 +285,23 @@ public class ApplicationContext
         RebootException
     {
         return getEntryPointClass(rebootConfig.getEntryPoint());
+    }
+
+    public RebootAction getAction(String actionName) throws RebootException,
+        InstantiationException, IllegalAccessException, ClassNotFoundException,
+        NoSuchMethodException, InvocationTargetException
+    {
+        ActionConfig actionConfig = lookupActionConfig(new ActionReference(actionName));
+        if (actionConfig == null)
+        {
+            if (parentConfigLoader == null)
+            {
+                throw new RebootException("Action not found: " + actionName);
+            }
+            return parentConfigLoader.getAction(actionName);
+        }
+        return getClassLoader(actionConfig.getModuleReference())
+            .loadClass(actionConfig.getClassName()).asSubclass(RebootAction.class)
+            .newInstance();
     }
 }

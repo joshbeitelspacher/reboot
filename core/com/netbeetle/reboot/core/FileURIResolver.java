@@ -84,6 +84,6 @@ public class FileURIResolver implements URIResolver
             return new ZipFileSystem(zipFile);
         }
 
-        throw new RuntimeException("File not found");
+        throw new RebootException("File not found");
     }
 }
