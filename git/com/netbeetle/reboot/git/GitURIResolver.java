@@ -16,7 +16,6 @@
 
 package com.netbeetle.reboot.git;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -92,36 +91,7 @@ public class GitURIResolver implements URIResolver
 
     private CachedRepository getRepository(String repositoryURI) throws IOException
     {
-        String rebootCacheString = System.getProperty("com.netbeetle.reboot.cache");
-        if (rebootCacheString == null)
-        {
-            rebootCacheString = System.getProperty("user.home") + "/.reboot/cache";
-        }
-
-        File rebootCacheDir = new File(rebootCacheString);
-
-        rebootCacheDir.mkdirs();
-
-        StringBuilder builder = new StringBuilder(repositoryURI.length());
-        for (int i = 0; i < repositoryURI.length(); i++)
-        {
-            char c = repositoryURI.charAt(i);
-            if (c < ' ' || c == '"' || c == '%' || c == '*' || c == ':' || c == '<' || c == '>'
-                || c == '?' || c == '\\' || c == '|' || c > '~')
-            {
-                builder.append('_');
-            }
-            else
-            {
-                builder.append(c);
-            }
-        }
-
-        String filename = builder.toString().replaceAll("_*/_*", "/");
-
-        File cacheDir = new File(rebootCacheDir, filename);
-
-        Repository repository = new FileRepository(cacheDir);
+        Repository repository = new FileRepository(Reboot.getCacheLocation(repositoryURI));
 
         CachedRepository cachedRepository = new CachedRepository(repositoryURI, repository);
 

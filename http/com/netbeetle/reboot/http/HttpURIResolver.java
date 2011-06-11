@@ -40,7 +40,7 @@ public class HttpURIResolver implements URIResolver
         {
             URL url = uri.toURL();
 
-            File cachedFile = getCachedFile(url);
+            File cachedFile = Reboot.getCacheLocation(uri.toString());
             if (!cachedFile.exists())
             {
                 download(url, cachedFile);
@@ -52,44 +52,6 @@ public class HttpURIResolver implements URIResolver
         {
             throw new RebootException("Error resolving " + uri, e);
         }
-    }
-
-    private File getCachedFile(URL url)
-    {
-        String rebootCacheString = System.getProperty("com.netbeetle.reboot.cache");
-        if (rebootCacheString == null)
-        {
-            rebootCacheString = System.getProperty("user.home") + "/.reboot/cache";
-        }
-
-        File rebootCacheDir = new File(rebootCacheString);
-
-        rebootCacheDir.mkdirs();
-
-        String urlString = url.toString();
-
-        StringBuilder builder = new StringBuilder(urlString.length());
-        for (int i = 0; i < urlString.length(); i++)
-        {
-            char c = urlString.charAt(i);
-            if (c < ' ' || c == '"' || c == '%' || c == '*' || c == ':' || c == '<' || c == '>'
-                || c == '?' || c == '\\' || c == '|' || c > '~')
-            {
-                builder.append('_');
-            }
-            else
-            {
-                builder.append(c);
-            }
-        }
-
-        String filename = builder.toString().replaceAll("_*/_*/*", "/");
-        if (filename.endsWith("/"))
-        {
-            filename = filename.substring(0, filename.length() - 1);
-        }
-
-        return new File(rebootCacheDir, filename);
     }
 
     private void download(URL url, File file) throws IOException

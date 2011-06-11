@@ -71,7 +71,7 @@ public class Reboot
             new ApplicationContext(applicationDir.toURI(), applicationConfig, masterContext);
 
         Arguments arguments = new Arguments(args);
-        
+
         if (!arguments.getOptions().isEmpty())
         {
             System.err.println("Unsupported options: " + arguments.getOptions());
@@ -86,5 +86,35 @@ public class Reboot
     public synchronized static void info(String message)
     {
         System.out.println(DATE_FORMAT.format(new Date()) + ": " + message);
+    }
+
+    public static File getCacheLocation(String uri)
+    {
+        String cacheString = System.getProperty("com.netbeetle.reboot.cache");
+        if (cacheString == null)
+        {
+            cacheString = System.getProperty("user.home") + "/.reboot/cache";
+        }
+
+        File cacheDir = new File(cacheString);
+
+        StringBuilder builder = new StringBuilder(uri.length());
+        for (int i = 0; i < uri.length(); i++)
+        {
+            char c = uri.charAt(i);
+            if (c < ' ' || c == '"' || c == '%' || c == '*' || c == ':' || c == '<' || c == '>'
+                || c == '?' || c == '\\' || c == '|' || c > '~')
+            {
+                builder.append('_');
+            }
+            else
+            {
+                builder.append(c);
+            }
+        }
+
+        String filename = builder.toString().replaceAll("_*/[_/]*", "/");
+
+        return new File(cacheDir, filename);
     }
 }
