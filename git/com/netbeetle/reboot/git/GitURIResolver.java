@@ -19,8 +19,8 @@ package com.netbeetle.reboot.git;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.lib.ObjectId;
@@ -33,12 +33,11 @@ import com.netbeetle.reboot.core.URIResolver;
 
 public class GitURIResolver implements URIResolver
 {
-    private final Object lock = new Object();
     private final Map<String, CachedRepository> repositories =
-        new ConcurrentHashMap<String, CachedRepository>();
+        new HashMap<String, CachedRepository>();
 
     @Override
-    public GitFileSystem resolve(URI uri) throws RebootException
+    public synchronized GitFileSystem resolve(URI uri) throws RebootException
     {
         String uriString = uri.toString();
         int start = uriString.startsWith("git+") ? 4 : 0;
@@ -48,22 +47,28 @@ public class GitURIResolver implements URIResolver
         CachedRepository cachedRepository = repositories.get(repositoryURI);
         if (cachedRepository == null)
         {
-            synchronized (lock)
+            try
             {
-                cachedRepository = repositories.get(repositoryURI);
-                if (cachedRepository == null)
+                Repository repository =
+                    new FileRepository(Reboot.getCacheLocation(repositoryURI));
+
+                cachedRepository = new CachedRepository(repositoryURI, repository);
+
+                if (!cachedRepository.exists())
                 {
-                    try
-                    {
-                        cachedRepository = getRepository(repositoryURI);
-                    }
-                    catch (IOException e)
-                    {
-                        throw new RebootException("Unable to retrieve repository", e);
-                    }
-                    repositories.put(repositoryURI, cachedRepository);
+                    Reboot.info("Initializing new repository " + repositoryURI);
+                    cachedRepository.init();
                 }
             }
+            catch (URISyntaxException e)
+            {
+                throw new RebootException("Unable to retrieve repository", e);
+            }
+            catch (IOException e)
+            {
+                throw new RebootException("Unable to retrieve repository", e);
+            }
+            repositories.put(repositoryURI, cachedRepository);
         }
 
         String revisionAndPath = uriString.substring(end + 1);
@@ -74,6 +79,46 @@ public class GitURIResolver implements URIResolver
 
         try
         {
+            GitRevision gitRevision = cachedRepository.lookupRevision(revisionAndPath);
+
+            if (!cachedRepository.hasFetched())
+            {
+                boolean needFetch;
+                if (gitRevision == null)
+                {
+                    needFetch = true;
+                }
+                else
+                {
+                    String ref = gitRevision.getRefName();
+                    if (ref == null)
+                    {
+                        needFetch = false;
+                    }
+                    else
+                    {
+                        needFetch = ref.startsWith("refs/heads/");
+                    }
+                }
+
+                if (needFetch)
+                {
+                    Reboot.info("Fetching from " + repositoryURI);
+                    cachedRepository.fetch();
+                    Reboot.info("Finished fetching from " + repositoryURI);
+
+                    gitRevision = cachedRepository.lookupRevision(revisionAndPath);
+                }
+            }
+
+            if (gitRevision == null)
+            {
+                throw new RebootException("Unable to find " + revisionAndPath
+                    + " in repository");
+            }
+
+            cachedRepository.useRevision(gitRevision);
+
             ObjectId treeId = cachedRepository.lookupTree(revisionAndPath);
             if (treeId == null)
             {
@@ -87,29 +132,9 @@ public class GitURIResolver implements URIResolver
         {
             throw new RebootException("Unable to find " + revisionAndPath + " in repository", e);
         }
-    }
-
-    private CachedRepository getRepository(String repositoryURI) throws IOException
-    {
-        Repository repository = new FileRepository(Reboot.getCacheLocation(repositoryURI));
-
-        CachedRepository cachedRepository = new CachedRepository(repositoryURI, repository);
-
-        try
-        {
-            Reboot.info("Fetching from " + repositoryURI);
-            cachedRepository.fetch();
-            Reboot.info("Finished fetching from " + repositoryURI);
-        }
         catch (InvalidRemoteException e)
         {
-            throw new IOException(e);
+            throw new RebootException("Unable to find " + revisionAndPath + " in repository", e);
         }
-        catch (URISyntaxException e)
-        {
-            throw new IOException(e);
-        }
-
-        return cachedRepository;
     }
 }

@@ -28,6 +28,7 @@ import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -43,8 +44,9 @@ public class CachedRepository
 {
     private final String uri;
     private final Repository repository;
-    private final ConcurrentNavigableMap<String, RevTree> revisions =
-        new ConcurrentSkipListMap<String, RevTree>();
+    private final ConcurrentNavigableMap<String, GitRevision> revisions =
+        new ConcurrentSkipListMap<String, GitRevision>();
+    private boolean hasFetched = false;
 
     public CachedRepository(String uri, Repository repository)
     {
@@ -62,78 +64,118 @@ public class CachedRepository
         return repository;
     }
 
-    public FetchResult fetch() throws IOException, URISyntaxException, InvalidRemoteException
+    public boolean exists()
     {
-        if (!repository.getDirectory().exists())
+        return repository.getDirectory().exists();
+    }
+
+    public void init() throws IOException, URISyntaxException
+    {
+        if (exists())
         {
-            repository.create(true);
-            StoredConfig config = repository.getConfig();
-            RemoteConfig remoteConfig = new RemoteConfig(config, "origin");
-            remoteConfig.addURI(new URIish(uri));
-            remoteConfig.setMirror(true);
-            remoteConfig.addFetchRefSpec(new RefSpec().setForceUpdate(true)
-                .setSourceDestination("refs/*", "refs/*"));
-            remoteConfig.update(config);
-            config.save();
+            return;
         }
 
+        repository.create(true);
+        StoredConfig config = repository.getConfig();
+        RemoteConfig remoteConfig = new RemoteConfig(config, "origin");
+        remoteConfig.addURI(new URIish(uri));
+        remoteConfig.setMirror(true);
+        remoteConfig.addFetchRefSpec(new RefSpec().setForceUpdate(true).setSourceDestination(
+            "refs/*", "refs/*"));
+        remoteConfig.update(config);
+        config.save();
+    }
+
+    public boolean hasFetched()
+    {
+        return hasFetched;
+    }
+
+    public FetchResult fetch() throws InvalidRemoteException
+    {
+        hasFetched = true;
         return new Git(repository).fetch().setRemote("origin").setRemoveDeletedRefs(true)
             .setTimeout(120).call();
     }
 
-    public ObjectId lookupTree(String revisionAndPath) throws IOException
+    public GitRevision lookupRevision(String revisionAndPath) throws IOException
     {
-        RevTree tree;
-        String path;
-
-        Map.Entry<String, RevTree> entry = revisions.floorEntry(revisionAndPath);
+        Map.Entry<String, GitRevision> entry = revisions.floorEntry(revisionAndPath);
         if (entry != null && revisionAndPath.startsWith(entry.getKey()))
         {
-            tree = entry.getValue();
-            path = revisionAndPath.substring(entry.getKey().length());
+            return entry.getValue();
         }
-        else
+
+        String name;
+        String refName = null;
+        ObjectId commitId = null;
+
+        int index = 0;
+        do
         {
-            int index = revisionAndPath.indexOf('/');
-
-            String revision;
-            ObjectId commitId;
-            while (true)
+            index = revisionAndPath.indexOf('/', index);
+            if (index == -1)
             {
-                revision = revisionAndPath.substring(0, index);
-                commitId = repository.resolve(revision);
-                if (commitId != null)
-                {
-                    break;
-                }
-                index = revisionAndPath.indexOf('/', index + 1);
-                if (index == -1)
-                {
-                    return null;
-                }
+                index = revisionAndPath.length();
             }
 
-            RevWalk revWalk = new RevWalk(repository);
-            try
-            {
-                RevCommit commit = revWalk.parseCommit(commitId);
-                tree = commit.getTree();
-            }
-            finally
-            {
-                revWalk.release();
-            }
+            name = revisionAndPath.substring(0, index);
 
-            RevTree oldTree = revisions.putIfAbsent(revision + '/', tree);
-            if (oldTree != null)
+            Ref ref = repository.getRef(name);
+            if (ref != null)
             {
-                tree = oldTree;
+                commitId = ref.getObjectId();
+                refName = ref.getName();
             }
+            else
+            {
+                commitId = repository.resolve(name);
+            }
+        }
+        while (commitId == null && index < revisionAndPath.length());
 
-            path = revisionAndPath.substring(index + 1);
+        if (commitId == null)
+        {
+            return null;
         }
 
-        return lookupTree(tree, path);
+        RevWalk revWalk = new RevWalk(repository);
+        try
+        {
+            RevCommit commit = revWalk.parseCommit(commitId);
+            RevTree tree = commit.getTree();
+            return new GitRevision(name, refName, commit, tree);
+        }
+        finally
+        {
+            revWalk.release();
+        }
+    }
+
+    public void useRevision(GitRevision revision)
+    {
+        revisions.putIfAbsent(revision.getName() + '/', revision);
+    }
+
+    public ObjectId lookupTree(String revisionAndPath) throws IOException
+    {
+        String key = revisionAndPath + '/';
+        Map.Entry<String, GitRevision> entry = revisions.floorEntry(key);
+        if (entry == null || !key.startsWith(entry.getKey()))
+        {
+            return null;
+        }
+
+        GitRevision revision = entry.getValue();
+        int revisionNameLength = revision.getName().length();
+
+        if (revisionAndPath.length() == revisionNameLength)
+        {
+            return revision.getTree();
+        }
+
+        return lookupTree(revision.getTree(), revisionAndPath.substring(revisionNameLength + 1));
     }
 
     public ObjectId lookupTree(ObjectId tree, String path) throws IOException
