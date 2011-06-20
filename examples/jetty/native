@@ -16,7 +16,7 @@
 
 cd $(dirname $(readlink -f $0))
 
-MAVEN_BASE=~/.reboot/cache/http/repo1.maven.org/maven2
+MAVEN_BASE=~/.reboot/cache/http/repo2.maven.org/maven2
 JETTY_BASE=${MAVEN_BASE}/org/eclipse/jetty
 JETTY_VERSION=7.4.1.v20110513
 JETTY_CLASSPATH=${MAVEN_BASE}/javax/servlet/servlet-api/2.5/servlet-api-2.5.jar

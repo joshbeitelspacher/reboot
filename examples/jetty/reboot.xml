@@ -30,7 +30,8 @@
     </module>
     <module>
       <id>jetty-server</id>
-      <uri>http://repo1.maven.org/maven2/org/eclipse/jetty/jetty-server/7.4.1.v20110513/jetty-server-7.4.1.v20110513.jar</uri>
+      <uri>maven:central:org.eclipse.jetty:jetty-server:7.4.1.v20110513:jar</uri>
+      <srcUri>maven:central:org.eclipse.jetty:jetty-server:7.4.1.v20110513:sources:jar</srcUri>
       <dependencies>
         <moduleId>jetty-http</moduleId>
         <moduleId>jetty-continuation</moduleId>
@@ -39,7 +40,8 @@
     </module>
     <module>
       <id>jetty-continuation</id>
-      <uri>http://repo1.maven.org/maven2/org/eclipse/jetty/jetty-continuation/7.4.1.v20110513/jetty-continuation-7.4.1.v20110513.jar</uri>
+      <uri>maven:central:org.eclipse.jetty:jetty-continuation:7.4.1.v20110513:jar</uri>
+      <srcUri>maven:central:org.eclipse.jetty:jetty-continuation:7.4.1.v20110513:sources:jar</srcUri>
       <dependencies>
         <moduleId>jetty-util</moduleId>
         <moduleId>servlet-api</moduleId>
@@ -47,25 +49,29 @@
     </module>
     <module>
       <id>jetty-http</id>
-      <uri>http://repo1.maven.org/maven2/org/eclipse/jetty/jetty-http/7.4.1.v20110513/jetty-http-7.4.1.v20110513.jar</uri>
+      <uri>maven:central:org.eclipse.jetty:jetty-http:7.4.1.v20110513:jar</uri>
+      <srcUri>maven:central:org.eclipse.jetty:jetty-http:7.4.1.v20110513:sources:jar</srcUri>
       <dependencies>
         <moduleId>jetty-io</moduleId>
       </dependencies>
     </module>
     <module>
       <id>jetty-io</id>
-      <uri>http://repo1.maven.org/maven2/org/eclipse/jetty/jetty-io/7.4.1.v20110513/jetty-io-7.4.1.v20110513.jar</uri>
+      <uri>maven:central:org.eclipse.jetty:jetty-io:7.4.1.v20110513:jar</uri>
+      <srcUri>maven:central:org.eclipse.jetty:jetty-io:7.4.1.v20110513:sources:jar</srcUri>
       <dependencies>
         <moduleId>jetty-util</moduleId>
       </dependencies>
     </module>
     <module>
       <id>jetty-util</id>
-      <uri>http://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/7.4.1.v20110513/jetty-util-7.4.1.v20110513.jar</uri>
+      <uri>maven:central:org.eclipse.jetty:jetty-util:7.4.1.v20110513:jar</uri>
+      <srcUri>maven:central:org.eclipse.jetty:jetty-util:7.4.1.v20110513:sources:jar</srcUri>
     </module>
     <module>
       <id>servlet-api</id>
-      <uri>http://repo1.maven.org/maven2/javax/servlet/servlet-api/2.5/servlet-api-2.5.jar</uri>
+      <uri>maven:central:javax.servlet:servlet-api:2.5:jar</uri>
+      <srcUri>maven:central:javax.servlet:servlet-api:2.5:sources:jar</srcUri>
     </module>
   </modules>
 </reboot>

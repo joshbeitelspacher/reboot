@@ -39,20 +39,15 @@ public class ApplicationContext
     private static final ClassLoaderReference SOURCE_CLASS_LOADER = new ClassLoaderReference(
         "reboot-source-classloader");
 
-    private final URI rebootDir;
     private final RebootConfig rebootConfig;
-    private final ApplicationContext parentConfigLoader;
     private final Map<ModuleConfig, RebootClassLoader> classLoaders =
         new HashMap<ModuleConfig, RebootClassLoader>();
     private final Map<URIResolverConfig, URIResolver> uriResolvers =
         new HashMap<URIResolverConfig, URIResolver>();
 
-    public ApplicationContext(URI rebootDir, RebootConfig rebootConfig,
-        ApplicationContext parentConfigLoader)
+    public ApplicationContext(RebootConfig rebootConfig)
     {
-        this.rebootDir = rebootDir;
         this.rebootConfig = rebootConfig;
-        this.parentConfigLoader = parentConfigLoader;
     }
 
     private ModuleConfig lookupModuleConfig(ModuleReference moduleReference)
@@ -110,11 +105,7 @@ public class ApplicationContext
         ModuleConfig module = lookupModuleConfig(moduleReference);
         if (module == null)
         {
-            if (parentConfigLoader == null)
-            {
-                throw new RebootException("Module not found: " + moduleReference.getId());
-            }
-            return parentConfigLoader.getClassLoader(moduleReference);
+            throw new RebootException("Module not found: " + moduleReference.getId());
         }
         return getClassLoader(module);
     }
@@ -199,35 +190,28 @@ public class ApplicationContext
         IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
         InvocationTargetException, RebootException
     {
-        URI fullURI = rebootDir.resolve(uri);
-
-        if (fullURI.getScheme().equals("file"))
+        if (uri.getScheme().equals("file"))
         {
-            return FileURIResolver.getInstance().resolve(fullURI);
+            return FileURIResolver.getInstance().resolve(uri);
         }
 
         List<URIResolverConfig> uriResolverConfigs = rebootConfig.getUriResolvers();
 
         if (uriResolverConfigs != null)
         {
-            String fullURIString = fullURI.toString();
+            String fullURIString = uri.toString();
 
             for (URIResolverConfig uriResolverConfig : uriResolverConfigs)
             {
                 if (uriResolverConfig.getExpression().matcher(fullURIString).matches())
                 {
                     URIResolver uriResolver = getURIResolver(uriResolverConfig);
-                    return uriResolver.resolve(fullURI);
+                    return uriResolver.resolve(uri);
                 }
             }
         }
 
-        if (parentConfigLoader == null)
-        {
-            throw new RebootException("URL handler not found for URL: " + fullURI);
-        }
-
-        return parentConfigLoader.getFileSystem(fullURI);
+        throw new RebootException("URI resolver not found for URI: " + uri);
     }
 
     private URIResolver getURIResolver(URIResolverConfig uriResolverConfig)
@@ -253,12 +237,7 @@ public class ApplicationContext
         ClassLoaderConfig classLoader = lookupClassLoaderConfig(classLoaderReference);
         if (classLoader == null)
         {
-            if (parentConfigLoader == null)
-            {
-                throw new RebootException("ClassLoader not found: "
-                    + classLoaderReference.getId());
-            }
-            return parentConfigLoader.getClassLoader(classLoaderReference, context);
+            throw new RebootException("ClassLoader not found: " + classLoaderReference.getId());
         }
         return getClassLoader(classLoader, context);
     }
@@ -294,11 +273,7 @@ public class ApplicationContext
         ActionConfig actionConfig = lookupActionConfig(new ActionReference(actionName));
         if (actionConfig == null)
         {
-            if (parentConfigLoader == null)
-            {
-                throw new RebootException("Action not found: " + actionName);
-            }
-            return parentConfigLoader.getAction(actionName);
+            throw new RebootException("Action not found: " + actionName);
         }
         return getClassLoader(actionConfig.getModuleReference())
             .loadClass(actionConfig.getClassName()).asSubclass(RebootAction.class)

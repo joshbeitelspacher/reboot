@@ -15,6 +15,33 @@
    limitations under the License.
 -->
 <reboot>
+  <uriRewriteRules>
+    <!-- Convert periods in Maven groupIds into slashes. -->
+    <uriRewriteRule>
+      <pattern>maven:{repository:[^:/]+}:{groupIdStart:[^.:]+}.{rest:.+}</pattern>
+      <replacement>maven:{repository}:{groupIdStart}/{rest}</replacement>
+    </uriRewriteRule>
+    <!-- Convert Maven URIs with classifiers into URLs. -->
+    <uriRewriteRule>
+      <pattern>maven:{repository:[^:/]+}:{groupId:[^.:]+}:{artifactId:[^:]+}:{version:[^:]+}:{classifier:[^:]+}:{type:[^:]+}</pattern>
+      <replacement>maven://{repository}/{groupId}/{artifactId}/{version}/{artifactId}-{version}-{classifier}.{type}</replacement>
+    </uriRewriteRule>
+    <!-- Convert Maven URIs without classifiers into URLs. -->
+    <uriRewriteRule>
+      <pattern>maven:{repository:[^:/]+}:{groupId:[^.:]+}:{artifactId:[^:]+}:{version:[^:]+}:{type:[^:]+}</pattern>
+      <replacement>maven://{repository}/{groupId}/{artifactId}/{version}/{artifactId}-{version}.{type}</replacement>
+    </uriRewriteRule>
+    <!-- Convert Maven central URLs into HTTP URLs. -->
+    <uriRewriteRule>
+      <pattern>maven://central/</pattern>
+      <replacement>http://repo1.maven.org/maven2/</replacement>
+    </uriRewriteRule>
+    <!-- Convert Maven jgit URLs into HTTP URLs -->
+    <uriRewriteRule>
+      <pattern>maven://jgit/</pattern>
+      <replacement>http://download.eclipse.org/jgit/maven/</replacement>
+    </uriRewriteRule>
+  </uriRewriteRules>
   <modules>
     <module>
       <id>reboot-run</id>
@@ -37,13 +64,13 @@
     </module>
     <module>
       <id>jsch</id>
-      <uri>http://jsch.sourceforge.net/maven2/com/jcraft/jsch/0.1.44/jsch-0.1.44.jar</uri>
-      <srcUri>http://jsch.sourceforge.net/maven2/com/jcraft/jsch/0.1.44/jsch-0.1.44-sources.jar</srcUri>
+      <uri>maven:central:com.jcraft:jsch:0.1.44:jar</uri>
+      <srcUri>maven:central:com.jcraft:jsch:0.1.44:sources:jar</srcUri>
     </module>
     <module>
       <id>jgit</id>
-      <uri>http://download.eclipse.org/jgit/maven/org/eclipse/jgit/org.eclipse.jgit/0.12.1/org.eclipse.jgit-0.12.1.jar</uri>
-      <srcUri>http://download.eclipse.org/jgit/maven/org/eclipse/jgit/org.eclipse.jgit/0.12.1/org.eclipse.jgit-0.12.1-sources.jar</srcUri>
+      <uri>maven:jgit:org.eclipse.jgit:org.eclipse.jgit:0.12.1:jar</uri>
+      <srcUri>maven:jgit:org.eclipse.jgit:org.eclipse.jgit:0.12.1:sources:jar</srcUri>
       <dependencies>
         <moduleId>jsch</moduleId>
       </dependencies>

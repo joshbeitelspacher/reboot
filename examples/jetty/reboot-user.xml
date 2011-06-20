@@ -15,21 +15,11 @@
    limitations under the License.
 -->
 <reboot>
-  <entryPoint>
-    <moduleId>lombok-example</moduleId>
-    <className>com.netbeetle.reboot.example.LombokTest</className>
-  </entryPoint>
-  <modules>
-    <module>
-      <id>lombok-example</id>
-      <srcUri>.</srcUri>
-      <dependencies>
-        <moduleId>lombok</moduleId>
-      </dependencies>
-    </module>
-    <module>
-      <id>lombok</id>
-      <uri>maven:central:org.projectlombok:lombok:0.9.3:jar</uri>
-    </module>
-  </modules>
+  <uriRewriteRules>
+    <!-- Load Maven artifacts from repo2 instead of repo1. -->
+    <uriRewriteRule>
+      <pattern>http://repo1.maven.org/maven2/</pattern>
+      <replacement>http://repo2.maven.org/maven2/</replacement>
+    </uriRewriteRule>
+  </uriRewriteRules>
 </reboot>

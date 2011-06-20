@@ -26,6 +26,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class RebootConfig
 {
     private EntryPointConfig entryPoint;
+    private List<URIRewriteRuleConfig> uriRewriteRules;
     private List<URIResolverConfig> uriResolvers;
     private List<ClassLoaderConfig> classLoaders;
     private List<ActionConfig> actions;
@@ -39,6 +40,18 @@ public class RebootConfig
     public void setEntryPoint(EntryPointConfig entryPoint)
     {
         this.entryPoint = entryPoint;
+    }
+
+    @XmlElementWrapper
+    @XmlElement(name = "uriRewriteRule")
+    public List<URIRewriteRuleConfig> getUriRewriteRules()
+    {
+        return uriRewriteRules;
+    }
+
+    public void setUriRewriteRules(List<URIRewriteRuleConfig> uriRewriteRules)
+    {
+        this.uriRewriteRules = uriRewriteRules;
     }
 
     @XmlElementWrapper

@@ -19,7 +19,9 @@ package com.netbeetle.reboot.core;
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import com.netbeetle.reboot.core.config.ConfigLoader;
 import com.netbeetle.reboot.core.config.RebootConfig;
@@ -62,13 +64,35 @@ public class Reboot
 
         ConfigLoader configLoader = new ConfigLoader();
 
-        RebootConfig masterConfig = configLoader.loadConfig(masterConfigFile);
-        ApplicationContext masterContext =
-            new ApplicationContext(rebootHomeDir.toURI(), masterConfig, null);
+        List<RebootConfig> configs = new ArrayList<RebootConfig>();
 
-        RebootConfig applicationConfig = configLoader.loadConfig(applicationConfigFile);
-        ApplicationContext applicationContext =
-            new ApplicationContext(applicationDir.toURI(), applicationConfig, masterContext);
+        File projectSpecificUserSettings = new File(applicationDir, "reboot-user.xml");
+        if (projectSpecificUserSettings.exists())
+        {
+            configs.add(configLoader.loadConfig(projectSpecificUserSettings));
+        }
+
+        File userSettings = new File(System.getProperty("user.home"), "reboot-user.xml");
+        if (userSettings.exists())
+        {
+            configs.add(configLoader.loadConfig(userSettings));
+        }
+
+        File systemUserSettings = new File(rebootHomeDir, "reboot-user.xml");
+        if (systemUserSettings.exists())
+        {
+            configs.add(configLoader.loadConfig(systemUserSettings));
+        }
+
+        configs.add(configLoader.loadConfig(masterConfigFile));
+
+        configs.add(configLoader.loadConfig(applicationConfigFile));
+
+        RebootConfig config = configLoader.merge(configs);
+
+        configLoader.rewriteURIs(config);
+
+        ApplicationContext applicationContext = new ApplicationContext(config);
 
         Arguments arguments = new Arguments(args);
 
