@@ -111,10 +111,10 @@ public class CachedRepository
         String refName = null;
         ObjectId commitId = null;
 
-        int index = 0;
+        int index = -1;
         do
         {
-            index = revisionAndPath.indexOf('/', index);
+            index = revisionAndPath.indexOf('/', index + 1);
             if (index == -1)
             {
                 index = revisionAndPath.length();
