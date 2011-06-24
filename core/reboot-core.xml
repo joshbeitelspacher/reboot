@@ -64,8 +64,8 @@
     </module>
     <module>
       <id>jsch</id>
-      <uri>maven:central:com.jcraft:jsch:0.1.44:jar</uri>
-      <srcUri>maven:central:com.jcraft:jsch:0.1.44:sources:jar</srcUri>
+      <uri>maven:central:com.jcraft:jsch:0.1.44-1:jar</uri>
+      <srcUri>maven:central:com.jcraft:jsch:0.1.44-1:sources:jar</srcUri>
     </module>
     <module>
       <id>jgit</id>
