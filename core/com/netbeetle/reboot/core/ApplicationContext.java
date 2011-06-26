@@ -50,6 +50,11 @@ public class ApplicationContext
         this.rebootConfig = rebootConfig;
     }
 
+    public RebootConfig getRebootConfig()
+    {
+        return rebootConfig;
+    }
+
     private ModuleConfig lookupModuleConfig(ModuleReference moduleReference)
     {
         if (rebootConfig.getModules() == null)
@@ -186,7 +191,7 @@ public class ApplicationContext
         }
     }
 
-    private RebootFileSystem getFileSystem(URI uri) throws InstantiationException,
+    public RebootFileSystem getFileSystem(URI uri) throws InstantiationException,
         IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
         InvocationTargetException, RebootException
     {

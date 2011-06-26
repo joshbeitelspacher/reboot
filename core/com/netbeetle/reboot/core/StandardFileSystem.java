@@ -122,4 +122,10 @@ public class StandardFileSystem implements RebootFileSystem
             return null;
         }
     }
+
+    @Override
+    public String fingerprint() throws IOException
+    {
+        return null;
+    }
 }

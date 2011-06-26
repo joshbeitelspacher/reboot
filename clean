@@ -18,5 +18,6 @@ cd $(dirname $(readlink -f $0))
 
 find core -name "*.class" -exec rm {} +
 find run -name "*.class" -exec rm {} +
+find modules -name "*.class" -exec rm {} +
 find source -name "*.class" -exec rm {} +
 find http -name "*.class" -exec rm {} +

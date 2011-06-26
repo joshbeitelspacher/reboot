@@ -16,8 +16,10 @@
 
 package com.netbeetle.reboot.core;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -112,6 +114,19 @@ public class ZipFileSystem implements RebootFileSystem
         else
         {
             return new ZipEntryFile(entry);
+        }
+    }
+
+    @Override
+    public String fingerprint() throws IOException
+    {
+        try
+        {
+            return HashUtil.hash(new File(zipFile.getName()));
+        }
+        catch (NoSuchAlgorithmException e)
+        {
+            throw new IOException("Unable to compute hash", e);
         }
     }
 }

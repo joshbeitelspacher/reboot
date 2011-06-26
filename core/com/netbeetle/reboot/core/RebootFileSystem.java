@@ -21,4 +21,6 @@ import java.io.IOException;
 public interface RebootFileSystem
 {
     RebootFile getFile(String name) throws IOException;
+
+    String fingerprint() throws IOException;
 }

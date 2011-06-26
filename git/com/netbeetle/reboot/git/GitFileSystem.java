@@ -130,4 +130,10 @@ public class GitFileSystem implements RebootFileSystem
 
         return new GitFile(name, blobId);
     }
+
+    @Override
+    public String fingerprint()
+    {
+        return treeId.name();
+    }
 }
