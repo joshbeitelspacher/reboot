@@ -73,8 +73,8 @@
     </module>
     <module>
       <id>jgit</id>
-      <uri>maven:jgit:org.eclipse.jgit:org.eclipse.jgit:0.12.1:jar</uri>
-      <srcUri>maven:jgit:org.eclipse.jgit:org.eclipse.jgit:0.12.1:sources:jar</srcUri>
+      <uri>maven:jgit:org.eclipse.jgit:org.eclipse.jgit:1.0.0.201106090707-r:jar</uri>
+      <srcUri>maven:jgit:org.eclipse.jgit:org.eclipse.jgit:1.0.0.201106090707-r:sources:jar</srcUri>
       <dependencies>
         <moduleId>jsch</moduleId>
       </dependencies>
