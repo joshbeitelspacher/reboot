@@ -100,7 +100,7 @@ public class SourceClassLoader extends RebootClassLoader
             String packageName = getName();
             String upperBound = packageName + Character.MAX_VALUE;
 
-            Collection<CompiledFile> compiledClasses =
+            Collection<RebootFile> compiledClasses =
                 cache.subMap(packageName, upperBound).values();
 
             if (recursive)
@@ -111,7 +111,7 @@ public class SourceClassLoader extends RebootClassLoader
             {
                 int packageNameLength = packageName.length();
 
-                for (CompiledFile compiledClass : compiledClasses)
+                for (RebootFile compiledClass : compiledClasses)
                 {
                     String compiledClassFileName =
                         compiledClass.getName().substring(packageNameLength);
@@ -126,31 +126,8 @@ public class SourceClassLoader extends RebootClassLoader
         }
     }
 
-    private static class CompiledFile extends RebootByteFile
-    {
-        private final byte[] bytes;
-
-        private CompiledFile(String name, byte[] bytes)
-        {
-            super(name);
-            this.bytes = bytes;
-        }
-
-        @Override
-        public byte[] getBytes() throws IOException
-        {
-            return bytes;
-        }
-
-        @Override
-        public long getSize()
-        {
-            return bytes.length;
-        }
-    }
-
-    private final ConcurrentNavigableMap<String, CompiledFile> cache =
-        new ConcurrentSkipListMap<String, CompiledFile>();
+    private final ConcurrentNavigableMap<String, RebootFile> cache =
+        new ConcurrentSkipListMap<String, RebootFile>();
     private final SortedSet<String> compiledFiles = new ConcurrentSkipListSet<String>();
 
     public SourceClassLoader(RebootClassLoaderContext context)
@@ -193,7 +170,7 @@ public class SourceClassLoader extends RebootClassLoader
 
         if (name.endsWith(".class"))
         {
-            CompiledFile cachedFile = cache.get(name);
+            RebootFile cachedFile = cache.get(name);
             if (cachedFile != null)
             {
                 return cachedFile;
@@ -321,8 +298,8 @@ public class SourceClassLoader extends RebootClassLoader
                     String classFileName = baseName + ".class";
                     String sourceFileName = baseName + ".java";
                     message.append(indent).append(memoryFile);
-                    cache.putIfAbsent(classFileName,
-                        new CompiledFile(classFileName, memoryFile.getContent()));
+                    cache.putIfAbsent(classFileName, new RebootByteFile(classFileName,
+                        memoryFile.getContent()));
                     compilationUnits.remove(sourceFileName);
                     compiledFiles.add(sourceFileName);
                     success = true;

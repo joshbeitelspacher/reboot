@@ -16,15 +16,25 @@
 
 package com.netbeetle.reboot.core;
 
-import java.io.IOException;
-
-public abstract class RebootByteFile extends RebootFile
+public class RebootByteFile extends RebootFile
 {
-    public RebootByteFile(String name)
+    private final byte[] bytes;
+
+    public RebootByteFile(String name, byte[] bytes)
     {
         super(name, false);
+        this.bytes = bytes;
     }
 
     @Override
-    public abstract byte[] getBytes() throws IOException;
+    public byte[] getBytes()
+    {
+        return bytes;
+    }
+
+    @Override
+    public long getSize()
+    {
+        return bytes.length;
+    }
 }
