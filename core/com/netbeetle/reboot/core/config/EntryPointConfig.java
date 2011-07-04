@@ -16,22 +16,19 @@
 
 package com.netbeetle.reboot.core.config;
 
-import javax.xml.bind.annotation.XmlElement;
-
 public class EntryPointConfig
 {
-    private ModuleReference module;
+    private String moduleId;
     private String className;
 
-    @XmlElement(name = "moduleId")
-    public ModuleReference getModuleReference()
+    public String getModuleId()
     {
-        return module;
+        return moduleId;
     }
 
-    public void setModuleReference(ModuleReference module)
+    public void setModuleId(String moduleId)
     {
-        this.module = module;
+        this.moduleId = moduleId;
     }
 
     public String getClassName()

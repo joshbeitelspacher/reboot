@@ -27,8 +27,8 @@ public class ModuleConfig
     private String id;
     private URI uri;
     private URI srcUri;
-    private ClassLoaderReference classLoader;
-    private List<ModuleReference> dependencies;
+    private String classLoaderId;
+    private List<String> dependencies;
 
     public String getId()
     {
@@ -60,25 +60,24 @@ public class ModuleConfig
         this.srcUri = srcUri;
     }
 
-    public ClassLoaderReference getClassLoader()
+    public String getClassLoaderId()
     {
-        return classLoader;
+        return classLoaderId;
     }
 
-    @XmlElement(name = "classLoaderId")
-    public void setClassLoader(ClassLoaderReference classLoader)
+    public void setClassLoaderId(String classLoaderId)
     {
-        this.classLoader = classLoader;
+        this.classLoaderId = classLoaderId;
     }
 
     @XmlElementWrapper
     @XmlElement(name = "moduleId")
-    public List<ModuleReference> getDependencies()
+    public List<String> getDependencies()
     {
         return dependencies;
     }
 
-    public void setDependencies(List<ModuleReference> dependencies)
+    public void setDependencies(List<String> dependencies)
     {
         this.dependencies = dependencies;
     }

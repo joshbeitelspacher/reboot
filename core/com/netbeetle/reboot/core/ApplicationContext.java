@@ -25,19 +25,15 @@ import java.util.Map;
 import java.util.Set;
 
 import com.netbeetle.reboot.core.config.ActionConfig;
-import com.netbeetle.reboot.core.config.ActionReference;
 import com.netbeetle.reboot.core.config.ClassLoaderConfig;
-import com.netbeetle.reboot.core.config.ClassLoaderReference;
 import com.netbeetle.reboot.core.config.EntryPointConfig;
 import com.netbeetle.reboot.core.config.ModuleConfig;
-import com.netbeetle.reboot.core.config.ModuleReference;
 import com.netbeetle.reboot.core.config.RebootConfig;
 import com.netbeetle.reboot.core.config.URIResolverConfig;
 
 public class ApplicationContext
 {
-    private static final ClassLoaderReference SOURCE_CLASS_LOADER = new ClassLoaderReference(
-        "reboot-source-classloader");
+    private static final String SOURCE_CLASS_LOADER = "reboot-source-classloader";
 
     private final RebootConfig rebootConfig;
     private final Map<ModuleConfig, RebootClassLoader> classLoaders =
@@ -55,7 +51,7 @@ public class ApplicationContext
         return rebootConfig;
     }
 
-    private ModuleConfig lookupModuleConfig(ModuleReference moduleReference)
+    private ModuleConfig lookupModuleConfig(String moduleId)
     {
         if (rebootConfig.getModules() == null)
         {
@@ -63,7 +59,7 @@ public class ApplicationContext
         }
         for (ModuleConfig module : rebootConfig.getModules())
         {
-            if (module.getId().equals(moduleReference.getId()))
+            if (module.getId().equals(moduleId))
             {
                 return module;
             }
@@ -71,7 +67,7 @@ public class ApplicationContext
         return null;
     }
 
-    private ClassLoaderConfig lookupClassLoaderConfig(ClassLoaderReference classLoaderReference)
+    private ClassLoaderConfig lookupClassLoaderConfig(String classLoaderId)
     {
         if (rebootConfig.getClassLoaders() == null)
         {
@@ -79,7 +75,7 @@ public class ApplicationContext
         }
         for (ClassLoaderConfig classLoader : rebootConfig.getClassLoaders())
         {
-            if (classLoader.getId().equals(classLoaderReference.getId()))
+            if (classLoader.getId().equals(classLoaderId))
             {
                 return classLoader;
             }
@@ -87,7 +83,7 @@ public class ApplicationContext
         return null;
     }
 
-    private ActionConfig lookupActionConfig(ActionReference actionReference)
+    private ActionConfig lookupActionConfig(String actionId)
     {
         if (rebootConfig.getActions() == null)
         {
@@ -95,7 +91,7 @@ public class ApplicationContext
         }
         for (ActionConfig action : rebootConfig.getActions())
         {
-            if (action.getId().equals(actionReference.getId()))
+            if (action.getId().equals(actionId))
             {
                 return action;
             }
@@ -103,14 +99,14 @@ public class ApplicationContext
         return null;
     }
 
-    public RebootClassLoader getClassLoader(ModuleReference moduleReference)
-        throws NoSuchMethodException, ClassNotFoundException, InstantiationException,
-        IllegalAccessException, InvocationTargetException, RebootException
+    public RebootClassLoader getClassLoader(String moduleId) throws NoSuchMethodException,
+        ClassNotFoundException, InstantiationException, IllegalAccessException,
+        InvocationTargetException, RebootException
     {
-        ModuleConfig module = lookupModuleConfig(moduleReference);
+        ModuleConfig module = lookupModuleConfig(moduleId);
         if (module == null)
         {
-            throw new RebootException("Module not found: " + moduleReference.getId());
+            throw new RebootException("Module not found: " + moduleId);
         }
         return getClassLoader(module);
     }
@@ -138,13 +134,13 @@ public class ApplicationContext
             Set<RebootClassLoader> dependencies = new LinkedHashSet<RebootClassLoader>();
             if (module.getDependencies() != null)
             {
-                for (ModuleReference dependency : module.getDependencies())
+                for (String dependency : module.getDependencies())
                 {
                     dependencies.add(getClassLoader(dependency));
                 }
             }
 
-            ClassLoaderReference moduleClassLoader = module.getClassLoader();
+            String moduleClassLoaderId = module.getClassLoaderId();
 
             RebootFileSystem fileSystem;
             if (module.getUri() != null)
@@ -154,9 +150,9 @@ public class ApplicationContext
             else if (module.getSrcUri() != null)
             {
                 fileSystem = getFileSystem(module.getSrcUri());
-                if (moduleClassLoader == null)
+                if (moduleClassLoaderId == null)
                 {
-                    moduleClassLoader = SOURCE_CLASS_LOADER;
+                    moduleClassLoaderId = SOURCE_CLASS_LOADER;
                 }
             }
             else
@@ -168,13 +164,13 @@ public class ApplicationContext
                 new RebootClassLoaderContext(module.getId(), fileSystem, dependencies, parent);
 
             RebootClassLoader classLoader;
-            if (moduleClassLoader == null)
+            if (moduleClassLoaderId == null)
             {
                 classLoader = new RebootClassLoader(context);
             }
             else
             {
-                classLoader = getClassLoader(moduleClassLoader, context);
+                classLoader = getClassLoader(moduleClassLoaderId, context);
             }
 
             classLoaders.put(module, classLoader);
@@ -234,15 +230,15 @@ public class ApplicationContext
         return uriResolver;
     }
 
-    private RebootClassLoader getClassLoader(ClassLoaderReference classLoaderReference,
+    private RebootClassLoader getClassLoader(String classLoaderId,
         RebootClassLoaderContext context) throws InstantiationException,
         IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
         InvocationTargetException, RebootException
     {
-        ClassLoaderConfig classLoader = lookupClassLoaderConfig(classLoaderReference);
+        ClassLoaderConfig classLoader = lookupClassLoaderConfig(classLoaderId);
         if (classLoader == null)
         {
-            throw new RebootException("ClassLoader not found: " + classLoaderReference.getId());
+            throw new RebootException("ClassLoader not found: " + classLoaderId);
         }
         return getClassLoader(classLoader, context);
     }
@@ -260,8 +256,7 @@ public class ApplicationContext
         ClassNotFoundException, NoSuchMethodException, InstantiationException,
         IllegalAccessException, InvocationTargetException, RebootException
     {
-        return getClassLoader(entryPoint.getModuleReference()).loadClass(
-            entryPoint.getClassName());
+        return getClassLoader(entryPoint.getModuleId()).loadClass(entryPoint.getClassName());
     }
 
     public Class<?> getEntryPointClass() throws ClassNotFoundException, NoSuchMethodException,
@@ -271,16 +266,16 @@ public class ApplicationContext
         return getEntryPointClass(rebootConfig.getEntryPoint());
     }
 
-    public RebootAction getAction(String actionName) throws RebootException,
+    public RebootAction getAction(String actionId) throws RebootException,
         InstantiationException, IllegalAccessException, ClassNotFoundException,
         NoSuchMethodException, InvocationTargetException
     {
-        ActionConfig actionConfig = lookupActionConfig(new ActionReference(actionName));
+        ActionConfig actionConfig = lookupActionConfig(actionId);
         if (actionConfig == null)
         {
-            throw new RebootException("Action not found: " + actionName);
+            throw new RebootException("Action not found: " + actionId);
         }
-        return getClassLoader(actionConfig.getModuleReference())
+        return getClassLoader(actionConfig.getModuleId())
             .loadClass(actionConfig.getClassName()).asSubclass(RebootAction.class)
             .newInstance();
     }
