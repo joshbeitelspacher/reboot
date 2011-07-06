@@ -105,6 +105,34 @@ public class ZipFileSystem implements RebootFileSystem
         ZipEntry entry = zipFile.getEntry(name);
         if (entry == null)
         {
+            // some zip files don't contain directory entries, so look for files
+            // inside the directory instead
+            if (name.endsWith("/"))
+            {
+                Enumeration<? extends ZipEntry> entries = zipFile.entries();
+                while (entries.hasMoreElements())
+                {
+                    ZipEntry nextEntry = entries.nextElement();
+                    String nextName = nextEntry.getName();
+                    if (nextName.endsWith("/"))
+                    {
+                        // the zip file contain directories, don't bother
+                        // scanning any further through it to find the directory
+                        // in question
+
+                        // this may fail to find directories inside zip files
+                        // that use directory entries inconsistently, but
+                        // preventing long scans through valid zip files is more
+                        // important than handling inconsistent zip files
+                        break;
+                    }
+                    else if (nextName.startsWith(name))
+                    {
+                        // found a file inside the directory
+                        return new ZipDirectory(name);
+                    }
+                }
+            }
             return null;
         }
         else if (entry.isDirectory())
