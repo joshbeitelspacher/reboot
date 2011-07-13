@@ -59,13 +59,13 @@ public class GitFileSystem implements RebootFileSystem
                     FileMode fileMode = treeWalk.getFileMode(0);
                     if (fileMode.getObjectType() == Constants.OBJ_TREE)
                     {
-                        contents.add(new GitDirectory(getName() + treeWalk.getNameString(),
+                        contents.add(new GitDirectory(getName() + treeWalk.getPathString(),
                             treeWalk.getObjectId(0)));
                     }
                     else if (fileMode.getObjectType() == Constants.OBJ_BLOB
                         && (fileMode == FileMode.REGULAR_FILE || fileMode == FileMode.EXECUTABLE_FILE))
                     {
-                        contents.add(new GitFile(getName() + treeWalk.getNameString(), treeWalk
+                        contents.add(new GitFile(getName() + treeWalk.getPathString(), treeWalk
                             .getObjectId(0)));
                     }
                 }
