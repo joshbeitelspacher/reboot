@@ -25,8 +25,8 @@ import javax.xml.bind.annotation.XmlElementWrapper;
 public class ModuleConfig
 {
     private String id;
-    private URI uri;
-    private URI srcUri;
+    private List<URI> uris;
+    private List<URI> srcUris;
     private String classLoaderId;
     private List<String> dependencies;
 
@@ -40,24 +40,26 @@ public class ModuleConfig
         this.id = id;
     }
 
-    public URI getUri()
+    @XmlElement(name = "uri")
+    public List<URI> getUris()
     {
-        return uri;
+        return uris;
     }
 
-    public void setUri(URI uri)
+    public void setUris(List<URI> uris)
     {
-        this.uri = uri;
+        this.uris = uris;
     }
 
-    public URI getSrcUri()
+    @XmlElement(name = "srcUri")
+    public List<URI> getSrcUris()
     {
-        return srcUri;
+        return srcUris;
     }
 
-    public void setSrcUri(URI srcUri)
+    public void setSrcUris(List<URI> srcUris)
     {
-        this.srcUri = srcUri;
+        this.srcUris = srcUris;
     }
 
     public String getClassLoaderId()

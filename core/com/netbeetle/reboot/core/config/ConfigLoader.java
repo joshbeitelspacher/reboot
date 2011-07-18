@@ -79,20 +79,25 @@ public class ConfigLoader
         URI directory = rebootConfigFile.getParentFile().toURI();
         for (ModuleConfig module : nullSafeList(config.getModules()))
         {
-            URI uri = module.getUri();
-            if (uri != null)
-            {
-                module.setUri(directory.resolve(uri));
-            }
-
-            URI srcUri = module.getSrcUri();
-            if (srcUri != null)
-            {
-                module.setSrcUri(directory.resolve(srcUri));
-            }
+            module.setUris(resolveURIs(directory, module.getUris()));
+            module.setSrcUris(resolveURIs(directory, module.getSrcUris()));
         }
 
         return config;
+    }
+
+    private List<URI> resolveURIs(URI directory, List<URI> uris)
+    {
+        List<URI> resolvedURIs = null;
+        if (uris != null)
+        {
+            resolvedURIs = new ArrayList<URI>(uris.size());
+            for (URI uri : uris)
+            {
+                resolvedURIs.add(directory.resolve(uri));
+            }
+        }
+        return resolvedURIs;
     }
 
     public String convertToXML(RebootConfig config) throws JAXBException
@@ -254,18 +259,24 @@ public class ConfigLoader
 
         for (ModuleConfig module : nullSafeList(config.getModules()))
         {
-            URI uri = module.getUri();
-            if (uri != null)
-            {
-                module.setUri(rewriteURI(rewriteRules, uri));
-            }
+            module.setUris(rewriteURIs(rewriteRules, module.getUris()));
+            module.setSrcUris(rewriteURIs(rewriteRules, module.getSrcUris()));
+        }
+    }
 
-            URI srcUri = module.getSrcUri();
-            if (srcUri != null)
+    private List<URI> rewriteURIs(List<URIRewriteRule> rewriteRules, List<URI> uris)
+        throws RebootException
+    {
+        List<URI> rewrittenURIs = null;
+        if (uris != null)
+        {
+            rewrittenURIs = new ArrayList<URI>(uris.size());
+            for (URI uri : uris)
             {
-                module.setSrcUri(rewriteURI(rewriteRules, srcUri));
+                rewrittenURIs.add(rewriteURI(rewriteRules, uri));
             }
         }
+        return rewrittenURIs;
     }
 
     private URI rewriteURI(List<URIRewriteRule> rewriteRules, URI uri) throws RebootException

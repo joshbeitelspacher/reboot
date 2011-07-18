@@ -20,11 +20,23 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class HashUtil
 {
+    public static String hash(String content) throws NoSuchAlgorithmException
+    {
+        MessageDigest digest = MessageDigest.getInstance("SHA1");
+
+        digest.update(content.getBytes(Charset.forName("UTF-8")));
+
+        byte[] bytes = digest.digest();
+
+        return toHexString(bytes);
+    }
+
     public static String hash(File file) throws IOException, NoSuchAlgorithmException
     {
         MessageDigest digest = MessageDigest.getInstance("SHA1");

@@ -18,6 +18,7 @@ package com.netbeetle.reboot.core;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -143,13 +144,13 @@ public class ApplicationContext
             String moduleClassLoaderId = module.getClassLoaderId();
 
             RebootFileSystem fileSystem;
-            if (module.getUri() != null)
+            if (module.getUris() != null)
             {
-                fileSystem = getFileSystem(module.getUri());
+                fileSystem = getFileSystem(module.getUris());
             }
-            else if (module.getSrcUri() != null)
+            else if (module.getSrcUris() != null)
             {
-                fileSystem = getFileSystem(module.getSrcUri());
+                fileSystem = getFileSystem(module.getSrcUris());
                 if (moduleClassLoaderId == null)
                 {
                     moduleClassLoaderId = SOURCE_CLASS_LOADER;
@@ -185,6 +186,24 @@ public class ApplicationContext
                 classLoaders.remove(module);
             }
         }
+    }
+
+    public RebootFileSystem getFileSystem(List<URI> uris) throws InstantiationException,
+        IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
+        InvocationTargetException, RebootException
+    {
+        if (uris.size() == 1)
+        {
+            return getFileSystem(uris.get(0));
+        }
+
+        List<RebootFileSystem> fileSystems = new ArrayList<RebootFileSystem>(uris.size());
+        for (URI uri : uris)
+        {
+            fileSystems.add(getFileSystem(uri));
+        }
+
+        return new UnionFileSystem(fileSystems);
     }
 
     public RebootFileSystem getFileSystem(URI uri) throws InstantiationException,

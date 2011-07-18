@@ -79,8 +79,9 @@ public class ModulesAction implements RebootAction
             {
                 for (ModuleConfig module : modules)
                 {
-                    printFingerprint(applicationContext, module, "uri", module.getUri(), output);
-                    printFingerprint(applicationContext, module, "srcUri", module.getSrcUri(),
+                    printFingerprint(applicationContext, module, "uri", module.getUris(),
+                        output);
+                    printFingerprint(applicationContext, module, "srcUri", module.getSrcUris(),
                         output);
                 }
             }
@@ -128,20 +129,20 @@ public class ModulesAction implements RebootAction
     }
 
     public void printFingerprint(ApplicationContext applicationContext, ModuleConfig module,
-        String uriType, URI uri, StringBuilder output) throws InstantiationException,
+        String uriType, List<URI> uris, StringBuilder output) throws InstantiationException,
         IllegalAccessException, ClassNotFoundException, NoSuchMethodException,
         InvocationTargetException, RebootException, IOException
     {
-        if (uri != null)
+        if (uris != null)
         {
-            RebootFileSystem fs = applicationContext.getFileSystem(uri);
+            RebootFileSystem fs = applicationContext.getFileSystem(uris);
             if (fs != null)
             {
                 String fingerprint = fs.fingerprint();
                 if (fingerprint != null)
                 {
                     output.append(module.getId()).append(" ").append(uriType).append(" ")
-                        .append(uri).append(" -> ").append(fingerprint)
+                        .append(uris).append(" -> ").append(fingerprint)
                         .append(String.format("%n"));
                 }
             }
