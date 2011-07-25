@@ -220,8 +220,7 @@ public class SourceClassLoader extends RebootClassLoader
 
         JavaFileManager standardFileManager = compiler.getStandardFileManager(null, null, null);
 
-        RebootFileManager fileManager =
-            new RebootFileManager(standardFileManager, this, getDependencies());
+        RebootFileManager fileManager = new RebootFileManager(standardFileManager, this);
         try
         {
             final Map<String, JavaFileObject> compilationUnits =

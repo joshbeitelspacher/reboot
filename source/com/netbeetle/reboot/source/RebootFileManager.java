@@ -39,15 +39,12 @@ public class RebootFileManager implements JavaFileManager
 {
     private final JavaFileManager standardFileManager;
     private final SourceClassLoader source;
-    private final Set<RebootClassLoader> dependencies;
     private final List<MemoryFileObject> memoryFiles;
 
-    public RebootFileManager(JavaFileManager standardFileManager, SourceClassLoader source,
-        Set<RebootClassLoader> dependencies)
+    public RebootFileManager(JavaFileManager standardFileManager, SourceClassLoader source)
     {
         this.standardFileManager = standardFileManager;
         this.source = source;
-        this.dependencies = dependencies;
         this.memoryFiles = new ArrayList<MemoryFileObject>();
     }
 
@@ -69,7 +66,7 @@ public class RebootFileManager implements JavaFileManager
         // if a recursive compile was requested from a different thread, instead
         // create a new classloader that won't compile anything
         return new RebootClassLoader(new RebootClassLoaderContext(source.getModuleName(),
-            source.getFileSystem(), dependencies, source.getParent()));
+            source.getFileSystem(), source.getDependencies(), source.getParent()));
     }
 
     @Override
@@ -102,7 +99,7 @@ public class RebootFileManager implements JavaFileManager
 
             if (!nonSourceKinds.isEmpty())
             {
-                for (RebootClassLoader dependency : dependencies)
+                for (RebootClassLoader dependency : source.getDependencies())
                 {
                     RebootFile directory = dependency.findRebootFile(directoryName);
                     if (directory == null)
@@ -221,7 +218,7 @@ public class RebootFileManager implements JavaFileManager
 
         if (kind != Kind.SOURCE)
         {
-            for (RebootClassLoader dependency : dependencies)
+            for (RebootClassLoader dependency : source.getDependencies())
             {
                 RebootFile file = dependency.findRebootFile(fileName);
                 if (file == null)
