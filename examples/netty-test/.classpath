@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path=""/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/reboot-core"/>
+	<classpathentry kind="var" path="REBOOT_CACHE/http/repo1.maven.org/maven2/junit/junit/4.8.2/junit-4.8.2.jar" sourcepath="/REBOOT_CACHE/http/repo1.maven.org/maven2/junit/junit/4.8.2/junit-4.8.2-sources.jar"/>
+	<classpathentry kind="output" path=".classes"/>
+</classpath>
