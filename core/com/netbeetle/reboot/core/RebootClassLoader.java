@@ -190,14 +190,14 @@ public class RebootClassLoader extends ClassLoader
             RebootFile file = findRebootFile(filename);
             if (file == null)
             {
-                throw new ClassNotFoundException(name);
+                throw new ClassNotFoundException(name + " (in " + moduleName + ")");
             }
             byte[] bytes = file.getBytes();
             return defineClass(name, bytes, 0, bytes.length);
         }
         catch (IOException e)
         {
-            throw new ClassNotFoundException(name, e);
+            throw new ClassNotFoundException(name + " (in " + moduleName + ")", e);
         }
     }
 
