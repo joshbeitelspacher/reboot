@@ -14,29 +14,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-REBOOT_HOME="$(dirname $(readlink -f $0))/.."
+REBOOT_SCRIPT="$0"
+
+while [[ -L "${REBOOT_SCRIPT}" ]]; do
+    REBOOT_SCRIPT="$(readlink "${REBOOT_SCRIPT}")"
+done
+
+REBOOT_BIN="$(dirname "${REBOOT_SCRIPT}")"
+
+REBOOT_HOME="$(cd "${REBOOT_BIN}/.." ; pwd -P)"
 
 if [[ -z "${JAVA_HOME}" ]]; then
     JAVA="$(which java)"
+    while [[ -L "${JAVA}" ]]; do
+        JAVA="$(readlink "${JAVA}")"
+    done
     if [[ -z "${JAVA}" ]]; then
         echo "Unable to find Java.  Please define JAVA_HOME or include java on the PATH."
         exit 1
     fi
-    JAVA_HOME="$(dirname $(readlink -f ${JAVA}))/../.."
+    JAVA_BIN="$(dirname "${JAVA}")"
+    JAVA_HOME="$(cd "${JAVA_BIN}/../.." ; pwd -P)"
     if [[ ! -d "${JAVA_HOME}" ]]; then
         echo "Unable to find Java home directory.  Please define JAVA_HOME."
         exit 1
     fi
+    JAVA="java"
 else
     JAVA="${JAVA_HOME}/bin/java"
 fi
 
+REBOOT_CLASSPATH="${REBOOT_HOME}/core"
+
 TOOLS_JAR="${JAVA_HOME}/lib/tools.jar"
-if [[ ! -f "${TOOLS_JAR}" ]]; then
-    echo "Unable to find tools.jar.  Some functionality may not work as expected."
+if [[ -f "${TOOLS_JAR}" ]]; then
+    REBOOT_CLASSPATH="${TOOLS_JAR}:${REBOOT_CLASSPATH}"
 fi
 
 # Use the following line to debug
 #REBOOT_OPTS="-agentlib:jdwp=transport=dt_socket,address=localhost:9009,server=y,suspend=y"
 
-exec ${JAVA} ${REBOOT_OPTS} -cp "${TOOLS_JAR}:${REBOOT_HOME}/core" "-Dcom.netbeetle.reboot.home=${REBOOT_HOME}" -Djava.protocol.handler.pkgs=com.netbeetle.reboot.core com.netbeetle.reboot.core.Reboot "$@"
+exec ${JAVA} ${REBOOT_OPTS} -cp "${REBOOT_CLASSPATH}" "-Dcom.netbeetle.reboot.home=${REBOOT_HOME}" -Djava.protocol.handler.pkgs=com.netbeetle.reboot.core com.netbeetle.reboot.core.Reboot "$@"
