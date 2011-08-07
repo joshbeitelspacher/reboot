@@ -183,10 +183,13 @@ public abstract class RebootFile
 
     /**
      * Lists the contents of a directory. If this method is called on a regular
-     * file an empty list will be returned.
+     * file an empty collection will be returned.
      * 
      * @param recursive
-     *            true if files in subdirectories should be included in the list
+     *            true if files in subdirectories should be included in the
+     *            collection
+     * @return a collection of files that may be empty if no files are found,
+     *         but is never null
      * @throws IOException
      *             if a list of files cannot be retrieved
      */
