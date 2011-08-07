@@ -14,15 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+APPLICATION_DIRECTORY="$(pwd)"
+
 REBOOT_SCRIPT="$0"
 
 while [[ -L "${REBOOT_SCRIPT}" ]]; do
+    cd "$(dirname "${REBOOT_SCRIPT}")"
+    REBOOT_SCRIPT="$(basename "${REBOOT_SCRIPT}")"
     REBOOT_SCRIPT="$(readlink "${REBOOT_SCRIPT}")"
 done
 
-REBOOT_BIN="$(dirname "${REBOOT_SCRIPT}")"
+cd "$(dirname "${REBOOT_SCRIPT}")/.."
+REBOOT_HOME="$(pwd -P)"
 
-REBOOT_HOME="$(cd "${REBOOT_BIN}/.." ; pwd -P)"
+cd "${APPLICATION_DIRECTORY}"
 
 if [[ -z "${JAVA_HOME}" ]]; then
     JAVA="$(which java)"
