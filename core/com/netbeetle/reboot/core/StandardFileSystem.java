@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Josh Beitelspacher
+ * Copyright 2011-2012 Josh Beitelspacher
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,12 +46,28 @@ public class StandardFileSystem implements RebootFileSystem
             Deque<File> stack = new LinkedList<File>();
             stack.addAll(Arrays.asList(file.listFiles()));
             List<RebootFile> contents = new ArrayList<RebootFile>();
+            int rootPathLength = file.getPath().length() + 1;
+            String replacement;
+            if (File.separator.equals("/"))
+            {
+                replacement = null;
+            }
+            else
+            {
+                replacement = File.separator;
+            }
             while (!stack.isEmpty())
             {
                 File next = stack.pop();
+                String path = next.getPath().substring(rootPathLength);
+                if (replacement != null)
+                {
+                    path.replace(replacement, "/");
+                }
+
                 if (next.isDirectory())
                 {
-                    contents.add(new StandardDirectory(getName() + next.getName() + '/', next));
+                    contents.add(new StandardDirectory(path + '/', next));
                     if (recursive)
                     {
                         File[] nextFiles = next.listFiles();
@@ -63,7 +79,7 @@ public class StandardFileSystem implements RebootFileSystem
                 }
                 else if (next.isFile())
                 {
-                    contents.add(new StandardFile(getName() + next.getName(), next));
+                    contents.add(new StandardFile(path, next));
                 }
             }
             return contents;
