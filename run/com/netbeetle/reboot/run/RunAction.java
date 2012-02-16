@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Josh Beitelspacher
+ * Copyright 2011-2012 Josh Beitelspacher
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ public class RunAction implements RebootAction
         {
             Reboot.info("Loading entry point class");
 
+            ClassLoader entryPointClassLoader = applicationContext.getEntryPointClassLoader();
             Class<?> entryPointClass = applicationContext.getEntryPointClass();
 
             Method mainMethod = entryPointClass.getMethod("main", String[].class);
@@ -44,6 +45,7 @@ public class RunAction implements RebootAction
 
             Reboot.info("Launching application");
 
+            Thread.currentThread().setContextClassLoader(entryPointClassLoader);
             mainMethod.invoke(null, (Object) args);
         }
         catch (RebootException e)

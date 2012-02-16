@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Josh Beitelspacher
+ * Copyright 2011-2012 Josh Beitelspacher
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -283,6 +283,13 @@ public class ApplicationContext
         RebootException
     {
         return getEntryPointClass(rebootConfig.getEntryPoint());
+    }
+
+    public ClassLoader getEntryPointClassLoader() throws ClassNotFoundException,
+        NoSuchMethodException, InstantiationException, IllegalAccessException,
+        InvocationTargetException, RebootException
+    {
+        return getClassLoader(rebootConfig.getEntryPoint().getModuleId());
     }
 
     public RebootAction getAction(String actionId) throws RebootException,
