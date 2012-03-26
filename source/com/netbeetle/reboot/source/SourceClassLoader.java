@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Josh Beitelspacher
+ * Copyright 2011-2012 Josh Beitelspacher
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,9 @@ import com.netbeetle.reboot.core.RebootFile;
 public class SourceClassLoader extends RebootClassLoader
 {
     private static final AtomicLong COMPILATION_COUNT = new AtomicLong(0);
+    private static final String NEW_LINE = String.format("%n");
+    private static final String SINGLE_INDENT = NEW_LINE + "  ";
+    private static final String DOUBLE_INDENT = SINGLE_INDENT + "  ";
 
     private class CompiledDirectory extends RebootDirectory
     {
@@ -225,8 +228,6 @@ public class SourceClassLoader extends RebootClassLoader
         {
             final Map<String, JavaFileObject> compilationUnits =
                 new ConcurrentHashMap<String, JavaFileObject>();
-            final String newLine = String.format("%n");
-            String indent = newLine + "    ";
             StringBuilder message = new StringBuilder("Starting compilation request ");
             message.append(compilationNumber).append(':');
             for (RebootFile file : files)
@@ -242,7 +243,7 @@ public class SourceClassLoader extends RebootClassLoader
                     if (javaFileForInput != null)
                     {
                         compilationUnits.put(file.getName(), javaFileForInput);
-                        message.append(indent).append(javaFileForInput);
+                        message.append(SINGLE_INDENT).append(javaFileForInput);
                     }
                 }
                 catch (IOException e)
@@ -260,66 +261,173 @@ public class SourceClassLoader extends RebootClassLoader
 
             message.delete(0, message.length());
 
-            message.append("Compilation request ").append(compilationNumber)
-                .append(" completed:");
             boolean success = false;
+
+            final StringBuffer warnings = new StringBuffer();
+            final StringBuffer errors = new StringBuffer();
+
+            // If annotation processors are installed an "expansion" phase must
+            // be run prior to the final compilation. Annotation processors are
+            // only used on classes explicitly listed in the compilation
+            // request. During the expansion phase any classes that will be
+            // implicitly included in the compilation are found and are
+            // explicitly added to the list of classes to compile. Only after
+            // all the classes are found can the final compilation be completed.
+            boolean annotationProcessingEnabled =
+                findResource("META-INF/services/javax.annotation.processing.Processor") != null;
+
+            int numberOfClassesToCompile = 0;
 
             while (!compilationUnits.isEmpty())
             {
-                int classesLeftToCompile = compilationUnits.size();
+                final boolean expanding =
+                    annotationProcessingEnabled
+                        && numberOfClassesToCompile != compilationUnits.size();
 
                 CompilationTask compilationTask =
-                    compiler.getTask(null, fileManager,
-                        new DiagnosticListener<JavaFileObject>()
+                    compiler
+                        .getTask(null, fileManager, new DiagnosticListener<JavaFileObject>()
                         {
                             @Override
                             public void report(Diagnostic<? extends JavaFileObject> diagnostic)
                             {
+                                String indentedOutput =
+                                    DOUBLE_INDENT
+                                        + diagnostic.toString()
+                                            .replace(NEW_LINE, DOUBLE_INDENT);
+
+                                String fileName;
+
                                 JavaFileObject source = diagnostic.getSource();
-                                if (diagnostic.getKind() == Diagnostic.Kind.ERROR
-                                    && source instanceof RebootFileObject)
+                                if (source != null && source instanceof RebootFileObject)
                                 {
-                                    String fileName = ((RebootFileObject) source).getFileName();
-                                    compilationUnits.remove(fileName);
-                                    compiledFiles.add(fileName);
+                                    fileName = ((RebootFileObject) source).getFileName();
                                 }
-                                Reboot.info("Compiler output for compilation request "
-                                    + compilationNumber + ':' + newLine + diagnostic.toString());
+                                else
+                                {
+                                    fileName = null;
+                                }
+
+                                if (expanding && fileName != null)
+                                {
+                                    // don't record errors or warnings during
+                                    // the expansion phase
+                                    compilationUnits.put(fileName, (RebootFileObject) source);
+                                }
+                                else if (diagnostic.getKind() == Diagnostic.Kind.ERROR)
+                                {
+                                    if (fileName == null)
+                                    {
+                                        // abort the compile if an error that
+                                        // isn't associated with a file occurs
+                                        compiledFiles.addAll(compilationUnits.keySet());
+                                        compilationUnits.clear();
+                                    }
+                                    else
+                                    {
+                                        // prevent the file with an error from
+                                        // being compiled again
+                                        compilationUnits.remove(fileName);
+                                        compiledFiles.add(fileName);
+                                    }
+                                    errors.append(indentedOutput);
+                                }
+                                else
+                                {
+                                    warnings.append(indentedOutput);
+                                }
                             }
                         }, null, null, new ArrayList<JavaFileObject>(compilationUnits.values()));
 
-                compilationTask.call();
+                success = compilationTask.call();
 
-                List<MemoryFileObject> memoryFiles = fileManager.getMemoryFiles();
+                if (success && !expanding)
+                {
+                    break;
+                }
+                else
+                {
+                    if (expanding)
+                    {
+                        for (MemoryFileObject memoryFile : fileManager.getMemoryFiles())
+                        {
+                            String baseName = memoryFile.getClassName();
+                            if (baseName.indexOf('$') == -1)
+                            {
+                                try
+                                {
+                                    RebootFileObject file =
+                                        (RebootFileObject) fileManager.getJavaFileForInput(
+                                            StandardLocation.SOURCE_PATH, baseName,
+                                            JavaFileObject.Kind.SOURCE);
+                                    if (file != null)
+                                    {
+                                        compilationUnits.put(file.getFileName(), file);
+                                    }
+                                }
+                                catch (IOException e)
+                                {
+                                    // do nothing
+                                }
+                                compiledFiles.add(baseName + ".java");
+                            }
+                        }
+                        numberOfClassesToCompile = compilationUnits.size();
+                    }
+
+                    // Discard all compiled classes from a compile task with
+                    // any errors or from a compile task during the expansion
+                    // phase. It is possible for a class that depends on a
+                    // class with errors to be successfully compiled. Such a
+                    // class would likely cause errors at runtime, so it is
+                    // preferable to prevent it from ever being loaded. Even if
+                    // this compile succeeded, classes compiled during the
+                    // expansion phase may not have been processed by our
+                    // annotation processors, so they need to be compiled again.
+                    fileManager.clearMemoryFiles();
+                    if (!compilationUnits.isEmpty())
+                    {
+                        warnings.delete(0, warnings.length());
+                    }
+                }
+            }
+
+            message.append("Compilation request ").append(compilationNumber)
+                .append(" completed:");
+
+            if (errors.length() > 0)
+            {
+                message.append(SINGLE_INDENT).append("Errors:").append(errors);
+            }
+            if (warnings.length() > 0)
+            {
+                message.append(SINGLE_INDENT).append("Warnings:").append(warnings);
+            }
+
+            List<MemoryFileObject> memoryFiles = fileManager.getMemoryFiles();
+            if (memoryFiles.isEmpty())
+            {
+                message.append(SINGLE_INDENT).append("No classes compiled");
+            }
+            else
+            {
+                message.append(SINGLE_INDENT).append("Compiled classes:");
                 for (MemoryFileObject memoryFile : memoryFiles)
                 {
                     String baseName = memoryFile.getClassName().replace('.', '/');
                     String classFileName = baseName + ".class";
-                    String sourceFileName = baseName + ".java";
-                    message.append(indent).append(memoryFile);
+                    message.append(DOUBLE_INDENT).append(memoryFile);
                     cache.putIfAbsent(classFileName, new RebootByteFile(classFileName,
                         memoryFile.getContent()));
-                    compilationUnits.remove(sourceFileName);
-                    compiledFiles.add(sourceFileName);
-                    success = true;
+                    if (baseName.indexOf('$') == -1)
+                    {
+                        compiledFiles.add(baseName + ".java");
+                    }
                 }
                 fileManager.clearMemoryFiles();
-
-                // break any infinite loops here
-                if (compilationUnits.size() == classesLeftToCompile)
-                {
-                    break;
-                }
             }
 
-            if (success)
-            {
-                Reboot.info(message.toString());
-            }
-            else
-            {
-                Reboot.info("No classes compiled in compilation request " + compilationNumber);
-            }
+            Reboot.info(message.toString());
         }
         finally
         {
