@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Josh Beitelspacher
+ * Copyright 2011-2012 Josh Beitelspacher
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,18 @@ public class GitURIResolver implements URIResolver
         String uriString = uri.toString();
         int start = uriString.startsWith("git+") ? 4 : 0;
         int end = uriString.indexOf(".git/") + 4;
+        int revisionAndPathStart = end + 1;
+        if (end == 3)
+        {
+            end = uriString.indexOf("!/");
+            revisionAndPathStart = end + 2;
+            if (end == -1)
+            {
+                throw new RebootException("Unabled to determine base URL for Git repository: "
+                    + uri);
+            }
+        }
+
         String repositoryURI = uriString.substring(start, end);
 
         CachedRepository cachedRepository = repositories.get(repositoryURI);
@@ -71,7 +83,7 @@ public class GitURIResolver implements URIResolver
             repositories.put(repositoryURI, cachedRepository);
         }
 
-        String revisionAndPath = uriString.substring(end + 1);
+        String revisionAndPath = uriString.substring(revisionAndPathStart);
         if (revisionAndPath.endsWith("/"))
         {
             revisionAndPath = revisionAndPath.substring(0, revisionAndPath.length() - 1);
